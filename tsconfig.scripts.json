@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false
+  },
+  "include": [
+    "contract_utils/w3swap_client_v2.ts",
+    "scripts/devnet_demo_meteora.ts", "scripts/init_platform_devnet.ts"
+  ],
+  "exclude": [
+    "contract_utils/w3swap_client.ts",
+    "contract_utils/meteora_service.ts",
+    "frontend/**/*",
+    "node_modules",
+    "target"
+  ]
+}

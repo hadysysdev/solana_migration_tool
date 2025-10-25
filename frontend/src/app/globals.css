@@ -1,0 +1,306 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@layer base {
+  :root {
+    --background: 15 15 15; /* #0F0F0F */
+    --foreground: 255 255 255; /* #FFFFFF */
+    --surface: 26 26 26; /* #1A1A1A */
+    --surface-2: 38 38 38; /* #262626 */
+    --surface-3: 64 64 64; /* #404040 */
+    --border: 64 64 64; /* #404040 */
+    --border-muted: 38 38 38; /* #262626 */
+    --foreground-muted: 161 161 170; /* #A1A1AA */
+    
+    /* Brand colors */
+    --primary: 0 212 255; /* #00D4FF */
+    --secondary: 123 63 242; /* #7B3FF2 */
+    --success: 16 185 129; /* #10B981 */
+    --warning: 245 158 11; /* #F59E0B */
+    --danger: 239 68 68; /* #EF4444 */
+    
+    /* Component specific */
+    --muted: var(--surface);
+    --muted-foreground: var(--foreground-muted);
+    --popover: var(--surface-2);
+    --popover-foreground: var(--foreground);
+    --card: var(--surface);
+    --card-foreground: var(--foreground);
+    --border: var(--border);
+    --input: var(--surface-2);
+    --primary-foreground: 15 15 15; /* #0F0F0F */
+    --secondary-foreground: 255 255 255; /* #FFFFFF */
+    --muted-foreground: var(--foreground-muted);
+    --accent: var(--surface-2);
+    --accent-foreground: var(--foreground);
+    --destructive: var(--danger);
+    --destructive-foreground: var(--foreground);
+    --ring: var(--primary);
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-surface;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-3 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary-500/50;
+  }
+
+  /* Focus styles */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-background;
+  }
+
+  /* Link styles */
+  a {
+    @apply transition-colors duration-200;
+  }
+
+  /* Selection styles */
+  ::selection {
+    @apply bg-primary-500/20 text-primary-300;
+  }
+
+  /* Form elements */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer components {
+  /* Button variants */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply bg-primary-500 text-primary-foreground hover:bg-primary-600 active:bg-primary-700;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary-500 text-secondary-foreground hover:bg-secondary-600 active:bg-secondary-700;
+  }
+
+  .btn-outline {
+    @apply border border-border bg-transparent hover:bg-surface hover:text-foreground;
+  }
+
+  .btn-ghost {
+    @apply hover:bg-surface hover:text-foreground;
+  }
+
+  .btn-danger {
+    @apply bg-danger-500 text-white hover:bg-danger-600 active:bg-danger-700;
+  }
+
+  /* Size variants */
+  .btn-sm {
+    @apply h-9 px-3 text-xs;
+  }
+
+  .btn-md {
+    @apply h-10 px-4 py-2;
+  }
+
+  .btn-lg {
+    @apply h-11 px-8 text-base;
+  }
+
+  /* Card styles */
+  .card {
+    @apply glass rounded-lg p-6 shadow-lg;
+  }
+
+  .card-header {
+    @apply mb-6;
+  }
+
+  .card-title {
+    @apply text-xl font-semibold text-foreground;
+  }
+
+  .card-description {
+    @apply text-sm text-foreground-muted mt-1;
+  }
+
+  /* Input styles */
+  .input {
+    @apply flex h-10 w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-foreground-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* Badge styles */
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply bg-primary-500/10 text-primary-400 border border-primary-500/20;
+  }
+
+  .badge-success {
+    @apply bg-success-500/10 text-success-400 border border-success-500/20;
+  }
+
+  .badge-warning {
+    @apply bg-warning-500/10 text-warning-400 border border-warning-500/20;
+  }
+
+  .badge-danger {
+    @apply bg-danger-500/10 text-danger-400 border border-danger-500/20;
+  }
+
+  /* Progress styles */
+  .progress-bar {
+    @apply w-full bg-surface-2 rounded-full h-2 overflow-hidden;
+  }
+
+  .progress-fill {
+    @apply h-full bg-primary-500 transition-all duration-300 ease-in-out;
+  }
+
+  /* Animation utilities */
+  .animate-glow {
+    @apply animate-pulse-glow;
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  /* Layout utilities */
+  .container-page {
+    @apply container mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-y {
+    @apply py-8 md:py-12 lg:py-16;
+  }
+
+  /* Responsive grid */
+  .grid-responsive {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+  }
+
+  /* Loading states */
+  .skeleton {
+    @apply animate-pulse bg-surface-2 rounded;
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  /* Status indicators */
+  .status-dot {
+    @apply w-2 h-2 rounded-full;
+  }
+
+  .status-active {
+    @apply bg-success-500 animate-pulse;
+  }
+
+  .status-pending {
+    @apply bg-warning-500;
+  }
+
+  .status-inactive {
+    @apply bg-surface-3;
+  }
+
+  .status-error {
+    @apply bg-danger-500;
+  }
+}
+
+@layer utilities {
+  /* Text utilities */
+  .text-gradient-primary {
+    @apply bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Border gradients */
+  .border-gradient-primary {
+    border: 1px solid transparent;
+    background: linear-gradient(var(--background), var(--background)) padding-box,
+                linear-gradient(135deg, rgb(var(--primary)), rgb(var(--secondary))) border-box;
+  }
+
+  /* Backdrop effects */
+  .backdrop-glass {
+    backdrop-filter: blur(8px) saturate(180%);
+    background-color: rgba(26, 26, 26, 0.8);
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Responsive text sizing */
+  .text-responsive {
+    @apply text-sm sm:text-base lg:text-lg;
+  }
+
+  .text-responsive-lg {
+    @apply text-lg sm:text-xl lg:text-2xl;
+  }
+
+  .text-responsive-xl {
+    @apply text-xl sm:text-2xl lg:text-3xl;
+  }
+}

@@ -1,0 +1,3782 @@
+{
+  "address": "9qPx5xbqg4xZp3BWbtCNGy3GVfZ4WeaeraMUvLBSdcKh",
+  "metadata": {
+    "name": "w3swap",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "W3Swap Migration Platform - Secure token migration on Solana with Token-2022 support"
+  },
+  "docs": [
+    "W3Swap Migration Platform",
+    "",
+    "A secure token migration platform on Solana that enables:",
+    "- Secure token swaps with admin controls",
+    "- Optional migration protection with SOL commitments",
+    "- LP token management and escrow",
+    "- Configurable refund mechanisms",
+    "- Multi-role access control (Super Admin, Project Admins)"
+  ],
+  "instructions": [
+    {
+      "name": "activate_project",
+      "docs": [
+        "Activate a project for migrations and create initial LP"
+      ],
+      "discriminator": [
+        237,
+        96,
+        65,
+        148,
+        226,
+        140,
+        89,
+        15
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project_admin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_token_vault",
+          "writable": true
+        },
+        {
+          "name": "liquidity_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  105,
+                  113,
+                  117,
+                  105,
+                  100,
+                  105,
+                  116,
+                  121,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "lp_escrow_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  112,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "meteora_pool",
+          "writable": true
+        },
+        {
+          "name": "lp_mint"
+        },
+        {
+          "name": "new_token_mint"
+        },
+        {
+          "name": "new_token_program"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "project_admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        },
+        {
+          "name": "meteora_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "lp_config",
+          "type": {
+            "defined": {
+              "name": "LpConfiguration"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "close_project_accounts",
+      "docs": [
+        "Finalize project step 2: close remaining accounts and reclaim rent"
+      ],
+      "discriminator": [
+        187,
+        23,
+        133,
+        120,
+        247,
+        197,
+        211,
+        55
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project_admin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_token_vault",
+          "writable": true
+        },
+        {
+          "name": "old_token_vault",
+          "writable": true
+        },
+        {
+          "name": "liquidity_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  105,
+                  113,
+                  117,
+                  105,
+                  100,
+                  105,
+                  116,
+                  121,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "project_admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        },
+        {
+          "name": "new_token_program",
+          "docs": [
+            "Token program interfaces (used to close token accounts via CPI)"
+          ]
+        },
+        {
+          "name": "old_token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "complete_settlement",
+      "docs": [
+        "Complete settlement and start LP lockup period"
+      ],
+      "discriminator": [
+        204,
+        142,
+        168,
+        39,
+        247,
+        27,
+        183,
+        240
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project_admin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platform_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "project_admin",
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "total_sol_from_sales",
+          "type": "u64"
+        },
+        {
+          "name": "lp_tokens_escrowed",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "create_project_init",
+      "docs": [
+        "Create project (step 1): initialize account and fields"
+      ],
+      "discriminator": [
+        123,
+        100,
+        107,
+        185,
+        23,
+        212,
+        141,
+        162
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project_admin"
+              },
+              {
+                "kind": "arg",
+                "path": "params.project_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "old_token_mint"
+        },
+        {
+          "name": "new_token_mint"
+        },
+        {
+          "name": "old_token_program"
+        },
+        {
+          "name": "new_token_program"
+        },
+        {
+          "name": "project_admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fee_destination",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "CreateProjectParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_project_vaults",
+      "docs": [
+        "Create project (step 2): initialize vaults + fund SOL commitment"
+      ],
+      "discriminator": [
+        101,
+        10,
+        109,
+        9,
+        146,
+        188,
+        140,
+        61
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project_admin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "old_token_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  108,
+                  100,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_token_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  101,
+                  119,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "liquidity_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  105,
+                  113,
+                  117,
+                  105,
+                  100,
+                  105,
+                  116,
+                  121,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "old_token_mint"
+        },
+        {
+          "name": "new_token_mint"
+        },
+        {
+          "name": "old_token_program"
+        },
+        {
+          "name": "new_token_program"
+        },
+        {
+          "name": "project_admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "deposit_lp",
+      "docs": [
+        "Deposit LP tokens to escrow"
+      ],
+      "discriminator": [
+        83,
+        107,
+        16,
+        26,
+        26,
+        20,
+        130,
+        56
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project_admin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "lp_escrow_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  112,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "project_admin_lp_account",
+          "writable": true
+        },
+        {
+          "name": "lp_mint"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "project_admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "end_project",
+      "docs": [
+        "End a project migration period"
+      ],
+      "discriminator": [
+        207,
+        245,
+        19,
+        20,
+        210,
+        197,
+        94,
+        146
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project_admin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "project_admin",
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "execute_jupiter_swap",
+      "docs": [
+        "Execute a Jupiter swap route (mainnet)"
+      ],
+      "discriminator": [
+        0,
+        153,
+        94,
+        101,
+        168,
+        72,
+        220,
+        247
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project.project_admin",
+                "account": "Project"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "old_token_vault",
+          "writable": true
+        },
+        {
+          "name": "wsol_vault",
+          "docs": [
+            "WSOL vault to receive proceeds"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "docs": [
+            "Token programs"
+          ]
+        },
+        {
+          "name": "route_program",
+          "docs": [
+            "Jupiter program (must be allowlisted)"
+          ]
+        },
+        {
+          "name": "payer",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "amount_in",
+          "type": "u64"
+        },
+        {
+          "name": "min_out_wsol",
+          "type": "u64"
+        },
+        {
+          "name": "ix_data",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "execute_meteora_swap",
+      "docs": [
+        "Execute a Meteora swap route (devnet/testing)"
+      ],
+      "discriminator": [
+        27,
+        78,
+        56,
+        97,
+        225,
+        40,
+        57,
+        111
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project.project_admin",
+                "account": "Project"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "old_token_vault",
+          "writable": true
+        },
+        {
+          "name": "wsol_vault",
+          "docs": [
+            "WSOL vault to receive proceeds"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "docs": [
+            "Token programs"
+          ]
+        },
+        {
+          "name": "route_program",
+          "docs": [
+            "Route program (must be allowlisted)"
+          ]
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Payer for any required ATA creations off-chain (not used here but kept for future)"
+          ],
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "amount_in",
+          "type": "u64"
+        },
+        {
+          "name": "min_out_wsol",
+          "type": "u64"
+        },
+        {
+          "name": "ix_data",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "finalize_project_transfers",
+      "docs": [
+        "Finalize project step 1: transfer LP/new tokens out and close LP escrow"
+      ],
+      "discriminator": [
+        65,
+        255,
+        47,
+        195,
+        114,
+        248,
+        154,
+        139
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project_admin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "lp_escrow_vault",
+          "writable": true
+        },
+        {
+          "name": "new_token_vault",
+          "writable": true
+        },
+        {
+          "name": "old_token_vault",
+          "writable": true
+        },
+        {
+          "name": "admin_lp_token_account",
+          "writable": true
+        },
+        {
+          "name": "admin_new_token_account",
+          "writable": true
+        },
+        {
+          "name": "lp_mint",
+          "docs": [
+            "LP token mint"
+          ]
+        },
+        {
+          "name": "new_token_mint"
+        },
+        {
+          "name": "new_token_program"
+        },
+        {
+          "name": "lp_token_program"
+        },
+        {
+          "name": "project_admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "finalize_settlement",
+      "docs": [
+        "Finalize settlement: skim fee and add remaining WSOL to LP"
+      ],
+      "discriminator": [
+        220,
+        72,
+        152,
+        119,
+        178,
+        196,
+        25,
+        170
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project.project_admin",
+                "account": "Project"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "wsol_vault",
+          "writable": true
+        },
+        {
+          "name": "lp_escrow_vault",
+          "docs": [
+            "LP escrow vault (receives LP tokens)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "lp_mint",
+          "docs": [
+            "LP token mint"
+          ]
+        },
+        {
+          "name": "wsol_mint",
+          "docs": [
+            "WSOL mint (So111...)"
+          ]
+        },
+        {
+          "name": "fee_destination_token_account",
+          "docs": [
+            "Fee destination WSOL token account (should be ATA of fee_destination_wallet)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "route_program",
+          "docs": [
+            "Route program for adding liquidity (Meteora)"
+          ]
+        },
+        {
+          "name": "payer",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "lp_add_ix_data",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "fund_project",
+      "docs": [
+        "Fund a project with new tokens"
+      ],
+      "discriminator": [
+        129,
+        115,
+        149,
+        68,
+        159,
+        207,
+        33,
+        149
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project_admin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_token_vault",
+          "writable": true
+        },
+        {
+          "name": "new_token_mint"
+        },
+        {
+          "name": "project_admin_token_account",
+          "writable": true
+        },
+        {
+          "name": "project_admin",
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        },
+        {
+          "name": "new_token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_platform",
+      "docs": [
+        "Initialize the platform with super admin"
+      ],
+      "discriminator": [
+        119,
+        201,
+        101,
+        45,
+        75,
+        122,
+        89,
+        3
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "super_admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "fee_destination_wallet",
+          "type": "pubkey"
+        },
+        {
+          "name": "min_sol_commitment",
+          "type": "u64"
+        },
+        {
+          "name": "auto_pause_threshold_percent",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "manage_project_admin",
+      "docs": [
+        "Manage project admin list (add/remove)"
+      ],
+      "discriminator": [
+        135,
+        104,
+        6,
+        76,
+        126,
+        79,
+        202,
+        224
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "super_admin",
+          "signer": true,
+          "relations": [
+            "platform_config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "admin",
+          "type": "pubkey"
+        },
+        {
+          "name": "action",
+          "type": {
+            "defined": {
+              "name": "AdminAction"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "mark_lp_created",
+      "docs": [
+        "Mark LP as created"
+      ],
+      "discriminator": [
+        162,
+        254,
+        123,
+        135,
+        187,
+        136,
+        51,
+        181
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project_admin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "project_admin",
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "migrate",
+      "docs": [
+        "Migrate old tokens for new tokens"
+      ],
+      "discriminator": [
+        155,
+        234,
+        231,
+        146,
+        236,
+        158,
+        162,
+        30
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project.project_admin",
+                "account": "Project"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_migration",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  109,
+                  105,
+                  103,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "old_token_vault",
+          "writable": true
+        },
+        {
+          "name": "new_token_vault",
+          "writable": true
+        },
+        {
+          "name": "user_old_token_account",
+          "writable": true
+        },
+        {
+          "name": "user_new_token_account",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "old_token_mint"
+        },
+        {
+          "name": "new_token_mint"
+        },
+        {
+          "name": "old_token_program"
+        },
+        {
+          "name": "new_token_program"
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "pause_project",
+      "docs": [
+        "Pause a project temporarily"
+      ],
+      "discriminator": [
+        8,
+        68,
+        240,
+        82,
+        45,
+        162,
+        129,
+        230
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project_admin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "project_admin",
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resume_project",
+      "docs": [
+        "Resume a paused project"
+      ],
+      "discriminator": [
+        11,
+        74,
+        18,
+        128,
+        57,
+        187,
+        127,
+        235
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project_admin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_token_vault"
+        },
+        {
+          "name": "new_token_mint"
+        },
+        {
+          "name": "project_admin",
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_fee_destination_wallet",
+      "docs": [
+        "Update fee destination wallet"
+      ],
+      "discriminator": [
+        174,
+        110,
+        188,
+        231,
+        119,
+        170,
+        13,
+        29
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "super_admin",
+          "signer": true,
+          "relations": [
+            "platform_config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_fee_destination",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_platform_config",
+      "docs": [
+        "Update platform configuration"
+      ],
+      "discriminator": [
+        195,
+        60,
+        76,
+        129,
+        146,
+        45,
+        67,
+        143
+      ],
+      "accounts": [
+        {
+          "name": "platform_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "super_admin",
+          "signer": true,
+          "relations": [
+            "platform_config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "allowed_swap_programs",
+          "type": {
+            "option": {
+              "vec": "pubkey"
+            }
+          }
+        },
+        {
+          "name": "min_sol_commitment",
+          "type": {
+            "option": "u64"
+          }
+        },
+        {
+          "name": "auto_pause_threshold_percent",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "platform_fee_sol",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "settlement_fee_percent",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "min_migration_days",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "max_migration_days",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "min_lp_lock_days",
+          "type": {
+            "option": "u8"
+          }
+        }
+      ]
+    },
+    {
+      "name": "withdraw_lp",
+      "docs": [
+        "Withdraw LP tokens from escrow"
+      ],
+      "discriminator": [
+        225,
+        221,
+        45,
+        211,
+        49,
+        60,
+        51,
+        163
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project_admin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "Project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "lp_escrow_vault",
+          "writable": true
+        },
+        {
+          "name": "project_admin_lp_account",
+          "writable": true
+        },
+        {
+          "name": "lp_mint"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "project_admin",
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "PlatformConfig",
+      "discriminator": [
+        160,
+        78,
+        128,
+        0,
+        248,
+        83,
+        230,
+        160
+      ]
+    },
+    {
+      "name": "Project",
+      "discriminator": [
+        205,
+        168,
+        189,
+        202,
+        181,
+        247,
+        142,
+        19
+      ]
+    },
+    {
+      "name": "UserMigration",
+      "discriminator": [
+        219,
+        194,
+        245,
+        85,
+        15,
+        214,
+        204,
+        163
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "FeeDestinationWalletUpdated",
+      "discriminator": [
+        6,
+        110,
+        8,
+        111,
+        67,
+        164,
+        252,
+        78
+      ]
+    },
+    {
+      "name": "LpCreated",
+      "discriminator": [
+        20,
+        66,
+        14,
+        136,
+        151,
+        216,
+        6,
+        91
+      ]
+    },
+    {
+      "name": "LpDeposited",
+      "discriminator": [
+        85,
+        211,
+        184,
+        159,
+        176,
+        224,
+        28,
+        72
+      ]
+    },
+    {
+      "name": "LpWithdrawn",
+      "discriminator": [
+        188,
+        10,
+        43,
+        60,
+        223,
+        238,
+        51,
+        153
+      ]
+    },
+    {
+      "name": "MigrationPerformed",
+      "discriminator": [
+        115,
+        222,
+        180,
+        59,
+        172,
+        120,
+        185,
+        163
+      ]
+    },
+    {
+      "name": "PlatformConfigUpdated",
+      "discriminator": [
+        198,
+        206,
+        187,
+        204,
+        148,
+        251,
+        237,
+        25
+      ]
+    },
+    {
+      "name": "PlatformInitialized",
+      "discriminator": [
+        16,
+        222,
+        212,
+        5,
+        213,
+        140,
+        112,
+        162
+      ]
+    },
+    {
+      "name": "ProjectAdminManaged",
+      "discriminator": [
+        61,
+        160,
+        44,
+        137,
+        204,
+        239,
+        166,
+        70
+      ]
+    },
+    {
+      "name": "ProjectCreated",
+      "discriminator": [
+        192,
+        10,
+        163,
+        29,
+        185,
+        31,
+        67,
+        168
+      ]
+    },
+    {
+      "name": "ProjectFinalized",
+      "discriminator": [
+        206,
+        140,
+        138,
+        3,
+        23,
+        210,
+        23,
+        204
+      ]
+    },
+    {
+      "name": "ProjectFunded",
+      "discriminator": [
+        125,
+        81,
+        242,
+        91,
+        14,
+        66,
+        74,
+        95
+      ]
+    },
+    {
+      "name": "ProjectStatusChanged",
+      "discriminator": [
+        61,
+        114,
+        220,
+        188,
+        124,
+        178,
+        129,
+        228
+      ]
+    },
+    {
+      "name": "SettlementCompleted",
+      "discriminator": [
+        24,
+        33,
+        148,
+        69,
+        53,
+        1,
+        59,
+        48
+      ]
+    },
+    {
+      "name": "SwapExecuted",
+      "discriminator": [
+        150,
+        166,
+        26,
+        225,
+        28,
+        89,
+        38,
+        79
+      ]
+    },
+    {
+      "name": "VaultBalanceLow",
+      "discriminator": [
+        110,
+        158,
+        117,
+        104,
+        67,
+        94,
+        159,
+        184
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NotSuperAdmin",
+      "msg": "Unauthorized: Not super admin"
+    },
+    {
+      "code": 6001,
+      "name": "NotProjectAdmin",
+      "msg": "Unauthorized: Not project admin"
+    },
+    {
+      "code": 6002,
+      "name": "ProjectAdminListFull",
+      "msg": "Project admin list is full"
+    },
+    {
+      "code": 6003,
+      "name": "ProjectAdminNotFound",
+      "msg": "Project admin not found"
+    },
+    {
+      "code": 6004,
+      "name": "ProjectAdminAlreadyExists",
+      "msg": "Project admin already exists"
+    },
+    {
+      "code": 6005,
+      "name": "AllowedSwapProgramsListFull",
+      "msg": "Allowed swap programs list is full"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidMigrationDuration",
+      "msg": "Invalid migration duration (must be exactly 30, 60, or 90 days)"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidMigrationPeriod",
+      "msg": "Invalid migration period (start/end timestamps)"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidExchangeRatio",
+      "msg": "Invalid exchange ratio"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidProtectionPercentage",
+      "msg": "Invalid protection percentage (50-100%)"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidRecoveryDelay",
+      "msg": "Invalid recovery delay (7-30 days)"
+    },
+    {
+      "code": 6011,
+      "name": "AllowListFull",
+      "msg": "Allow list is full"
+    },
+    {
+      "code": 6012,
+      "name": "DenyListFull",
+      "msg": "Deny list is full"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidProjectStatus",
+      "msg": "Project not in correct status"
+    },
+    {
+      "code": 6014,
+      "name": "MigrationNotActive",
+      "msg": "Migration not active"
+    },
+    {
+      "code": 6015,
+      "name": "UserNotAllowed",
+      "msg": "User not allowed to migrate"
+    },
+    {
+      "code": 6016,
+      "name": "UserOnDenyList",
+      "msg": "User is on deny list"
+    },
+    {
+      "code": 6017,
+      "name": "UserNotOnAllowList",
+      "msg": "User not on allow list"
+    },
+    {
+      "code": 6018,
+      "name": "InsufficientTokensInVault",
+      "msg": "Insufficient tokens in vault"
+    },
+    {
+      "code": 6019,
+      "name": "InsufficientSolForProtection",
+      "msg": "Insufficient SOL for protection"
+    },
+    {
+      "code": 6020,
+      "name": "ProjectNotFunded",
+      "msg": "Project not funded"
+    },
+    {
+      "code": 6021,
+      "name": "MigrationPeriodEnded",
+      "msg": "Migration period has ended"
+    },
+    {
+      "code": 6022,
+      "name": "MigrationPeriodNotEnded",
+      "msg": "Migration period has not ended"
+    },
+    {
+      "code": 6023,
+      "name": "LpCreationDeadlineNotReached",
+      "msg": "LP creation deadline not reached"
+    },
+    {
+      "code": 6024,
+      "name": "LpAlreadyCreated",
+      "msg": "LP already created"
+    },
+    {
+      "code": 6025,
+      "name": "LpNotCreated",
+      "msg": "LP not created"
+    },
+    {
+      "code": 6026,
+      "name": "LpStillLocked",
+      "msg": "LP still locked"
+    },
+    {
+      "code": 6027,
+      "name": "LockupPeriodNotEnded",
+      "msg": "Lockup period has not ended"
+    },
+    {
+      "code": 6028,
+      "name": "RecoveryPeriodNotStarted",
+      "msg": "Recovery period not started"
+    },
+    {
+      "code": 6029,
+      "name": "RefundAlreadyClaimed",
+      "msg": "Refund already claimed"
+    },
+    {
+      "code": 6030,
+      "name": "NoRefundAvailable",
+      "msg": "No refund available"
+    },
+    {
+      "code": 6031,
+      "name": "ProtectionNotEnabled",
+      "msg": "Protection not enabled"
+    },
+    {
+      "code": 6032,
+      "name": "ProgramNotAllowedForRoutes",
+      "msg": "Program not allowed for routes"
+    },
+    {
+      "code": 6033,
+      "name": "MinimumOutputNotMet",
+      "msg": "Minimum output not met"
+    },
+    {
+      "code": 6034,
+      "name": "InvalidTokenProgram",
+      "msg": "Invalid token program"
+    },
+    {
+      "code": 6035,
+      "name": "AmountIsZero",
+      "msg": "Amount is zero"
+    },
+    {
+      "code": 6036,
+      "name": "ArithmeticOverflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6037,
+      "name": "InvalidPdaSeeds",
+      "msg": "Invalid PDA seeds"
+    },
+    {
+      "code": 6038,
+      "name": "AccountAlreadyInitialized",
+      "msg": "Account already initialized"
+    },
+    {
+      "code": 6039,
+      "name": "AccountNotInitialized",
+      "msg": "Account not initialized"
+    },
+    {
+      "code": 6040,
+      "name": "InvalidAccountOwner",
+      "msg": "Invalid account owner"
+    },
+    {
+      "code": 6041,
+      "name": "TokenMintMismatch",
+      "msg": "Token mint mismatch"
+    },
+    {
+      "code": 6042,
+      "name": "InvalidVaultAuthority",
+      "msg": "Invalid vault authority"
+    },
+    {
+      "code": 6043,
+      "name": "CpiCallFailed",
+      "msg": "CPI call failed"
+    },
+    {
+      "code": 6044,
+      "name": "InvalidInstructionData",
+      "msg": "Invalid instruction data"
+    },
+    {
+      "code": 6045,
+      "name": "RouteExecutionFailed",
+      "msg": "Route execution failed"
+    },
+    {
+      "code": 6046,
+      "name": "SlippageToleranceExceeded",
+      "msg": "Slippage tolerance exceeded"
+    },
+    {
+      "code": 6047,
+      "name": "EmptySpecialRatioList",
+      "msg": "Special ratio list is empty"
+    },
+    {
+      "code": 6048,
+      "name": "SpecialRatioListFull",
+      "msg": "Special ratio list is full"
+    },
+    {
+      "code": 6049,
+      "name": "InvalidSpecialRatioConfig",
+      "msg": "Invalid special ratio configuration"
+    },
+    {
+      "code": 6050,
+      "name": "InvalidSolCommitment",
+      "msg": "Invalid SOL commitment amount"
+    },
+    {
+      "code": 6051,
+      "name": "InsufficientSolCommitment",
+      "msg": "SOL commitment is below platform minimum"
+    },
+    {
+      "code": 6052,
+      "name": "InvalidLpCreationDeadline",
+      "msg": "Invalid LP creation deadline (1-30 days)"
+    },
+    {
+      "code": 6053,
+      "name": "ProjectNotReady",
+      "msg": "Project cannot be activated before start time"
+    },
+    {
+      "code": 6054,
+      "name": "InvalidThresholdPercent",
+      "msg": "Invalid auto-pause threshold percentage"
+    },
+    {
+      "code": 6055,
+      "name": "InsufficientVaultBalanceToResume",
+      "msg": "Vault balance too low to resume - please top up vault"
+    }
+  ],
+  "types": [
+    {
+      "name": "AdminAction",
+      "docs": [
+        "Admin action for managing project admins"
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Add"
+          },
+          {
+            "name": "Remove"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreateProjectParams",
+      "docs": [
+        "Parameters for creating a new project"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project_id",
+            "docs": [
+              "Unique project identifier"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "project_name",
+            "docs": [
+              "Project display name"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "old_token_mint",
+            "docs": [
+              "Old token mint to migrate from"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "new_token_mint",
+            "docs": [
+              "New token mint to migrate to"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "old_token_program",
+            "docs": [
+              "Token program for old token"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "new_token_program",
+            "docs": [
+              "Token program for new token"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "migration_start",
+            "docs": [
+              "Migration start timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "migration_end",
+            "docs": [
+              "Migration end timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "exchange_ratio_numerator",
+            "docs": [
+              "Exchange ratio numerator (0 for 1:1)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "exchange_ratio_denominator",
+            "docs": [
+              "Exchange ratio denominator (0 for 1:1)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "sol_commitment_amount",
+            "docs": [
+              "SOL commitment amount for LP creation (in lamports)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "special_ratio_enabled",
+            "docs": [
+              "Enable special ratio for certain wallets"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "special_ratio_wallets",
+            "docs": [
+              "Wallets that get special exchange ratio"
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "allowlist_enabled",
+            "docs": [
+              "Enable allow list"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "denylist_enabled",
+            "docs": [
+              "Enable deny list"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "allowlist",
+            "docs": [
+              "Allow list entries"
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "denylist",
+            "docs": [
+              "Deny list entries"
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeeDestinationWalletUpdated",
+      "docs": [
+        "Fee destination wallet updated event"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "super_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "old_fee_destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_fee_destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LpConfiguration",
+      "docs": [
+        "LP Configuration for initial liquidity creation"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "initial_price",
+            "docs": [
+              "Initial price for new token (in SOL per token)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "token_allocation",
+            "docs": [
+              "Amount of new tokens to allocate for LP"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bin_step",
+            "docs": [
+              "Meteora bin step (price precision in basis points)"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "base_fee",
+            "docs": [
+              "Base trading fee in basis points"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "price_range_min",
+            "docs": [
+              "Price range for concentrated liquidity"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "price_range_max",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LpCreated",
+      "docs": [
+        "LP created event"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project_id",
+            "type": "u64"
+          },
+          {
+            "name": "project_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "project_pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LpDeposited",
+      "docs": [
+        "LP deposited event"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project_id",
+            "type": "u64"
+          },
+          {
+            "name": "project_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "project_pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_deposited",
+            "type": "u64"
+          },
+          {
+            "name": "lock_end_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LpWithdrawn",
+      "docs": [
+        "LP withdrawn event"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project_id",
+            "type": "u64"
+          },
+          {
+            "name": "project_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "project_pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "remaining_deposited",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MigrationPerformed",
+      "docs": [
+        "Migration performed event"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project_id",
+            "type": "u64"
+          },
+          {
+            "name": "project_pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "old_tokens_amount",
+            "type": "u64"
+          },
+          {
+            "name": "new_tokens_amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_old_migrated",
+            "type": "u64"
+          },
+          {
+            "name": "total_new_distributed",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlatformConfig",
+      "docs": [
+        "Platform configuration PDA",
+        "Seeds: [\"platform_config\"]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "super_admin",
+            "docs": [
+              "Super admin who can manage everything"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "project_admins",
+            "docs": [
+              "List of project admins who can create projects"
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "fee_destination_wallet",
+            "docs": [
+              "Wallet to receive platform fees"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "allowed_swap_programs",
+            "docs": [
+              "Programs allowed for finalization routes"
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "min_sol_commitment",
+            "docs": [
+              "Minimum SOL commitment required for LP creation (in lamports)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "auto_pause_threshold_percent",
+            "docs": [
+              "Auto-pause threshold percentage (e.g., 10 = 10% of one token)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "platform_fee_lamports",
+            "docs": [
+              "Platform fee charged (in lamports). Configured via a simple SOL integer input",
+              "and converted to lamports on-chain."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "settlement_fee_percent",
+            "docs": [
+              "Settlement fee in whole percent (0-100). For example, 1 = 1%."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "min_migration_days",
+            "docs": [
+              "Minimum migration duration in days (simple input)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "max_migration_days",
+            "docs": [
+              "Maximum migration duration in days (simple input)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "min_lp_lock_days",
+            "docs": [
+              "Minimum LP lock duration in days (simple input)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "Bump seed for PDA derivation"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlatformConfigUpdated",
+      "docs": [
+        "Platform config updated event"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "super_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "allowed_swap_programs_count",
+            "type": "u8"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlatformInitialized",
+      "docs": [
+        "Platform initialized event"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "super_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_destination_wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Project",
+      "docs": [
+        "Migration project PDA",
+        "Seeds: [\"project\", project_admin.key(), project_id]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project_id",
+            "docs": [
+              "Unique project identifier"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "project_admin",
+            "docs": [
+              "Admin who created and manages this project"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "old_token_mint",
+            "docs": [
+              "Old token mint to migrate from"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "new_token_mint",
+            "docs": [
+              "New token mint to migrate to"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "old_token_program",
+            "docs": [
+              "Token program for old token (SPL or Token-2022)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "new_token_program",
+            "docs": [
+              "Token program for new token (SPL or Token-2022)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "old_token_vault",
+            "docs": [
+              "Vault holding old tokens"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "new_token_vault",
+            "docs": [
+              "Vault holding new tokens for distribution"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "liquidity_vault",
+            "docs": [
+              "Vault holding SOL/WSOL commitment for LP"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "wsol_vault",
+            "docs": [
+              "Vault holding WSOL proceeds from swaps"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "lp_escrow_vault",
+            "docs": [
+              "LP token escrow vault"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "docs": [
+              "Current project status"
+            ],
+            "type": {
+              "defined": {
+                "name": "ProjectStatus"
+              }
+            }
+          },
+          {
+            "name": "migration_start",
+            "docs": [
+              "Migration start timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "migration_end",
+            "docs": [
+              "Migration end timestamp (dynamically calculated)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "migration_duration",
+            "docs": [
+              "Migration duration in seconds (as specified by admin)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "total_pause_duration",
+            "docs": [
+              "Total pause duration in seconds (accumulated)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_pause_start",
+            "docs": [
+              "Last pause timestamp (0 if not paused)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "activated_at",
+            "docs": [
+              "Actual activation timestamp (when project became active)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "exchange_ratio_numerator",
+            "docs": [
+              "Exchange ratio numerator (0 = 1:1 ratio)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "exchange_ratio_denominator",
+            "docs": [
+              "Exchange ratio denominator (0 = 1:1 ratio)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "auto_pause_threshold_percent",
+            "docs": [
+              "Auto-pause threshold percent copied from platform at creation"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "project_name",
+            "docs": [
+              "Project display name"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "total_old_migrated",
+            "docs": [
+              "Total old tokens migrated"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_new_distributed",
+            "docs": [
+              "Total new tokens distributed"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_sol_committed",
+            "docs": [
+              "Total SOL committed for protection"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lp_created",
+            "docs": [
+              "LP created flag"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "lp_tokens_deposited",
+            "docs": [
+              "LP tokens deposited to escrow"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lp_lock_end",
+            "docs": [
+              "LP lock end timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "meteora_pool",
+            "docs": [
+              "Meteora LP pool address (created at activation)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "lp_config",
+            "docs": [
+              "LP configuration used for pool creation"
+            ],
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "LpConfiguration"
+                }
+              }
+            }
+          },
+          {
+            "name": "special_ratio_enabled",
+            "docs": [
+              "Special ratio enabled for certain wallets"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "special_ratio_wallets",
+            "docs": [
+              "Special ratio wallets (who get special exchange rate)"
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "allowlist_enabled",
+            "docs": [
+              "Allow list enabled"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "denylist_enabled",
+            "docs": [
+              "Deny list enabled"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "allowlist",
+            "docs": [
+              "Allow list entries (only allocated if enabled)"
+            ],
+            "type": {
+              "option": {
+                "vec": "pubkey"
+              }
+            }
+          },
+          {
+            "name": "denylist",
+            "docs": [
+              "Deny list entries (only allocated if enabled)"
+            ],
+            "type": {
+              "option": {
+                "vec": "pubkey"
+              }
+            }
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "Bump seed for PDA derivation"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProjectAdminManaged",
+      "docs": [
+        "Project admin managed event"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "super_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "action",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProjectCreated",
+      "docs": [
+        "Project created event"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project_id",
+            "type": "u64"
+          },
+          {
+            "name": "project_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "project_pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "old_token_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_token_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "migration_duration",
+            "type": "i64"
+          },
+          {
+            "name": "allowlist_enabled",
+            "type": "bool"
+          },
+          {
+            "name": "denylist_enabled",
+            "type": "bool"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProjectFinalized",
+      "docs": [
+        "Project finalized event (after lockup - admin claims LP tokens)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project_id",
+            "type": "u64"
+          },
+          {
+            "name": "project_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "project_pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "lp_tokens_claimed",
+            "type": "u64"
+          },
+          {
+            "name": "new_tokens_claimed",
+            "type": "u64"
+          },
+          {
+            "name": "rent_reclaimed",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProjectFunded",
+      "docs": [
+        "Project funded event"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project_id",
+            "type": "u64"
+          },
+          {
+            "name": "project_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "project_pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_funded",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProjectStatus",
+      "docs": [
+        "Project status enumeration"
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Created"
+          },
+          {
+            "name": "Funded"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Paused"
+          },
+          {
+            "name": "Ended"
+          },
+          {
+            "name": "Finalized"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProjectStatusChanged",
+      "docs": [
+        "Project status changed event"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project_id",
+            "type": "u64"
+          },
+          {
+            "name": "project_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "project_pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "old_status",
+            "type": {
+              "defined": {
+                "name": "ProjectStatus"
+              }
+            }
+          },
+          {
+            "name": "new_status",
+            "type": {
+              "defined": {
+                "name": "ProjectStatus"
+              }
+            }
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SettlementCompleted",
+      "docs": [
+        "Settlement completed event (LP created and lockup starts)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project_id",
+            "type": "u64"
+          },
+          {
+            "name": "project_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "project_pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_sol_from_sales",
+            "type": "u64"
+          },
+          {
+            "name": "lp_tokens_escrowed",
+            "type": "u64"
+          },
+          {
+            "name": "lockup_starts_at",
+            "type": "i64"
+          },
+          {
+            "name": "lockup_ends_at",
+            "type": "i64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwapExecuted",
+      "docs": [
+        "Swap executed via adapter (Jupiter/Meteora)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project_id",
+            "type": "u64"
+          },
+          {
+            "name": "project_pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "route_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_in",
+            "type": "u64"
+          },
+          {
+            "name": "min_out_wsol",
+            "type": "u64"
+          },
+          {
+            "name": "amount_out_wsol",
+            "type": "u64"
+          },
+          {
+            "name": "wsol_balance_after",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserMigration",
+      "docs": [
+        "User migration record PDA",
+        "Seeds: [\"user_migration\", project.key(), user.key()]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project",
+            "docs": [
+              "Project this migration belongs to"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "docs": [
+              "User who performed the migration"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "old_tokens_migrated",
+            "docs": [
+              "Total old tokens migrated by user"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "new_tokens_received",
+            "docs": [
+              "Total new tokens received by user"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "sol_committed",
+            "docs": [
+              "SOL committed for protection"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "refund_claimed",
+            "docs": [
+              "Refund claimed flag"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "Bump seed for PDA derivation"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultBalanceLow",
+      "docs": [
+        "Vault balance low event (triggers auto-pause)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project_id",
+            "type": "u64"
+          },
+          {
+            "name": "project_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "project_pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "remaining_balance",
+            "type": "u64"
+          },
+          {
+            "name": "required_amount",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}
