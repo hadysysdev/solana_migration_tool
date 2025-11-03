@@ -4,21 +4,25 @@ import { cn } from '@/lib/utils';
 
 const cardVariants = cva(
   [
-    'rounded-lg shadow-lg transition-all duration-200',
-    'border border-border/50',
+    'rounded-xl shadow-lg transition-all duration-300',
+    'border',
   ],
   {
     variants: {
       variant: {
-        default: 'bg-surface text-foreground',
-        glass: 'glass text-foreground',
+        default: 'bg-surface text-foreground border-border/50',
+        glass: [
+          'glass text-foreground border-slate-700/50',
+          'hover:border-primary-500/30 hover:shadow-glow-cyan-purple',
+        ],
         gradient: [
-          'bg-gradient-to-br from-surface via-surface-2 to-surface',
-          'border-gradient-primary',
+          'bg-gradient-to-br from-slate-800/50 via-slate-900/50 to-slate-800/50',
+          'border-slate-700/50 backdrop-blur-sm',
+          'hover:border-primary-500/30',
         ],
         elevated: [
-          'bg-surface text-foreground',
-          'shadow-xl hover:shadow-2xl',
+          'bg-slate-800/50 text-foreground border-slate-700/50',
+          'shadow-xl hover:shadow-2xl hover:shadow-glow-cyan-purple',
           'transform hover:-translate-y-1',
         ],
       },

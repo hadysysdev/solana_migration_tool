@@ -35,7 +35,7 @@ export const getConnection = () => {
 
 // Get program instance
 export const getProgram = (provider: AnchorProvider): Program<W3swap> => {
-  return new Program<W3swap>(idl as W3swap, W3SWAP_PROGRAM_ID, provider);
+  return new Program<W3swap>(idl as W3swap, provider);
 };
 
 // Get project PDA

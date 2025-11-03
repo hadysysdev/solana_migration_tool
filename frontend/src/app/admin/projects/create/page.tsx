@@ -8,6 +8,7 @@ import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { getConnection } from '@/lib/anchor';
 import { createProjectInitFromForm, createProjectVaults, fundProject as fundProjectIx, activateProject as activateProjectIx } from '@/lib/w3swapClient';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { RequireAdmin } from '@/components/auth/require-admin';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Info,
   ArrowRight,
@@ -31,7 +31,8 @@ import {
   TrendingUp,
   Calendar,
   Plus,
-  X
+  X,
+  FileText
 } from 'lucide-react';
 
 interface ProjectConfig {
@@ -88,7 +89,7 @@ export default function CreateProjectPage() {
   const wallet = useAnchorWallet();
   const [activeTab, setActiveTab] = useState('basic');
   const [isCreating, setIsCreating] = useState(false);
-  const [createdProjectId, setCreatedProjectId] = useState<number | null>(null);
+  const [createdProjectId, setCreatedProjectId] = useState<number | null>(0);
   const [fundAmount, setFundAmount] = useState<string>(''); // base units of new token
   const [activateParams, setActivateParams] = useState({
     meteoraPool: '',
@@ -123,7 +124,7 @@ export default function CreateProjectPage() {
     endDate: '',
     lpConfig: {
       commitment: '',
-      lockDuration: 90,
+      lockDuration: 60,
       initialPrice: '1',
       binStep: 100,
       minBinId: -1000,
@@ -143,11 +144,90 @@ export default function CreateProjectPage() {
     newAmount: 1,
   });
 
+  // Validation functions for each tab
+  const validateBasicTab = (): boolean => {
+    return !!config.name.trim();
+  };
+
+  const validateTokensTab = (): boolean => {
+    return !!(config.oldToken.address.trim() && config.newToken.address.trim());
+  };
+
+  const validateMigrationTab = (): boolean => {
+    return !!(config.startDate && config.endDate);
+  };
+
+  const validateLiquidityTab = (): boolean => {
+    return !!(
+      config.lpConfig.commitment?.trim() &&
+      config.lpConfig.lockDuration &&
+      config.lpConfig.initialPrice?.trim() &&
+      config.lpConfig.binStep &&
+      config.lpConfig.minBinId !== undefined &&
+      config.lpConfig.maxBinId !== undefined
+    );
+  };
+
+  const isTabValid = (tab: string): boolean => {
+    switch (tab) {
+      case 'basic':
+        return validateBasicTab();
+      case 'tokens':
+        return validateTokensTab();
+      case 'migration':
+        return validateMigrationTab();
+      case 'liquidity':
+        return validateLiquidityTab();
+      case 'access':
+        return true; // Access tab doesn't have required fields
+      default:
+        return false;
+    }
+  };
+
+  const canAccessTab = (tab: string | undefined): boolean => {
+    if (!tab) return false;
+    const tabs = ['basic', 'tokens', 'migration', 'liquidity', 'access'];
+    const targetIndex = tabs.indexOf(tab);
+    if (targetIndex === -1) return false;
+    
+    // Can always go to previous tabs
+    const currentIndex = tabs.indexOf(activeTab);
+    if (targetIndex <= currentIndex) return true;
+    
+    // For future tabs, check if all previous tabs are valid
+    for (let i = 0; i < targetIndex; i++) {
+      const tab = tabs[i];
+      if (tab && !isTabValid(tab)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleTabChange = (newTab: string | undefined) => {
+    if (newTab && canAccessTab(newTab)) {
+      setActiveTab(newTab);
+    } else if (newTab) {
+      toast.error('Please complete all required fields in previous tabs before proceeding');
+    }
+  };
+
   const handleNext = () => {
+    if (!isTabValid(activeTab)) {
+      toast.error('Please complete all required fields before proceeding');
+      return;
+    }
+    
     const tabs = ['basic', 'tokens', 'migration', 'liquidity', 'access'];
     const currentIndex = tabs.indexOf(activeTab);
     if (currentIndex < tabs.length - 1) {
-      setActiveTab(tabs[currentIndex + 1]);
+      const nextTab = tabs[currentIndex + 1];
+      if (nextTab && canAccessTab(nextTab)) {
+        setActiveTab(nextTab);
+      } else {
+        toast.error('Please complete all required fields before proceeding');
+      }
     }
   };
 
@@ -155,7 +235,10 @@ export default function CreateProjectPage() {
     const tabs = ['basic', 'tokens', 'migration', 'liquidity', 'access'];
     const currentIndex = tabs.indexOf(activeTab);
     if (currentIndex > 0) {
-      setActiveTab(tabs[currentIndex - 1]);
+      const prevTab = tabs[currentIndex - 1];
+      if (prevTab) {
+        setActiveTab(prevTab);
+      }
     }
   };
 
@@ -222,7 +305,7 @@ export default function CreateProjectPage() {
 
   return (
     <RequireAdmin fallback={<div className="p-6">Admins only</div>}>
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold">Create Migration Project</h1>
@@ -231,62 +314,161 @@ export default function CreateProjectPage() {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="basic">Basic Info</TabsTrigger>
-          <TabsTrigger value="tokens">Tokens</TabsTrigger>
-          <TabsTrigger value="migration">Migration</TabsTrigger>
-          <TabsTrigger value="liquidity">Liquidity</TabsTrigger>
-          <TabsTrigger value="access">Access</TabsTrigger>
-        </TabsList>
+      <div className="flex gap-6">
+        {/* Sidebar Navigation - Fixed (stays visible when scrolling) */}
+        <div className="w-64 shrink-0 relative">
+          {/* Spacer to maintain layout flow */}
+          <div className="h-0">
+            {/* Fixed sidebar overlays this space - aligns with card on right */}
+            <div className="fixed top-[calc(64px+6rem+1.5rem)] left-[calc(256px+1.5rem)] w-64 space-y-1 z-20">
+              <div className="rounded-lg bg-surface border border-border p-2 backdrop-blur-sm bg-surface/95 shadow-lg flex flex-col">
+                <div className="space-y-1">
+                  {[
+                    { id: 'basic', label: 'Basic Info', icon: FileText },
+                    { id: 'tokens', label: 'Tokens', icon: Coins },
+                    { id: 'migration', label: 'Migration', icon: ArrowRight },
+                    { id: 'liquidity', label: 'Liquidity', icon: TrendingUp },
+                    { id: 'access', label: 'Access', icon: Shield },
+                  ].map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    const canAccess = canAccessTab(tab.id);
+                    const isValid = isTabValid(tab.id);
+                    
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => handleTabChange(tab.id)}
+                        disabled={!canAccess && activeTab !== tab.id}
+                        className={cn(
+                          'w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
+                          'disabled:cursor-not-allowed disabled:opacity-50',
+                          isActive
+                            ? 'bg-gradient-to-r from-primary-500/20 to-secondary-500/20 text-primary-400 border border-primary-500/40 shadow-lg shadow-primary-500/20'
+                            : 'text-foreground-muted hover:bg-surface-2 hover:text-foreground',
+                          !isValid && isActive && 'ring-2 ring-warning-500/50',
+                          !canAccess && activeTab !== tab.id && 'opacity-40'
+                        )}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span className="flex-1 text-left">{tab.label}</span>
+                        {!isValid && activeTab !== tab.id && (
+                          <span className="text-warning-400 text-xs">*</span>
+                        )}
+                        {isActive && (
+                          <div className="h-2 w-2 rounded-full bg-primary-400" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                {/* Navigation buttons at bottom of sidebar */}
+                <div className="mt-4 pt-4 border-t border-border flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handlePrevious}
+                    disabled={activeTab === 'basic'}
+                    size="sm"
+                    className="flex-1"
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Previous
+                  </Button>
+                  
+                  {activeTab === 'access' ? (
+                    <Button
+                      onClick={handleCreateProject}
+                      disabled={!config.name || !config.oldToken.address || !config.newToken.address || isCreating}
+                      size="sm"
+                      className="flex-1"
+                    >
+                      {isCreating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Create Project
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button onClick={handleNext} size="sm" className="flex-1">
+                      Next
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content - Offset for fixed sidebar */}
+        <div className="flex-1 min-w-0 ml-0">
 
         {/* Basic Info */}
-        <TabsContent value="basic" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Information</CardTitle>
-              <CardDescription>
+        {activeTab === 'basic' && (
+          <Card className="h-[300px] flex flex-col pt-4 pb-4">
+            <CardHeader className="pb-2 pt-0 shrink-0">
+              <CardTitle className="text-base">Project Information</CardTitle>
+              <CardDescription className="text-xs">
                 Basic details about your migration project
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="name">Project Name</Label>
+            <CardContent className="flex-1 flex flex-col space-y-2 min-h-0 overflow-hidden pb-0">
+              <div className="shrink-0">
+                <Label htmlFor="name" className="text-sm">
+                  Project Name <span className="text-warning-400">*</span>
+                </Label>
                 <Input
                   id="name"
                   placeholder="e.g., DeFi Token V2 Migration"
                   value={config.name}
                   onChange={(e) => setConfig({ ...config, name: e.target.value })}
-                  className="mt-1"
+                  className={cn(
+                    "mt-1 h-9 text-sm",
+                    !config.name.trim() && "border-warning-500/50 focus-visible:ring-warning-500"
+                  )}
+                  required
                 />
+                {!config.name.trim() && (
+                  <p className="text-xs text-warning-400 mt-0.5">Project name is required</p>
+                )}
               </div>
               
-              <div>
-                <Label htmlFor="description">Description</Label>
+              <div className="flex-1 flex flex-col min-h-0">
+                <Label htmlFor="description" className="text-sm">Description</Label>
                 <Textarea
                   id="description"
                   placeholder="Describe the purpose and benefits of this migration..."
                   value={config.description}
                   onChange={(e) => setConfig({ ...config, description: e.target.value })}
-                  className="mt-1 h-32"
+                  className="mt-1 flex-1 resize-none text-sm min-h-0"
                 />
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
         {/* Token Configuration */}
-        <TabsContent value="tokens" className="space-y-6">
+        {activeTab === 'tokens' && (
+          <div className="grid gap-4 lg:grid-cols-2">
           <Card>
-            <CardHeader>
-              <CardTitle>Old Token</CardTitle>
-              <CardDescription>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Old Token</CardTitle>
+              <CardDescription className="text-xs">
                 The existing token that users will migrate from
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               <div>
-                <Label htmlFor="oldAddress">Token Address</Label>
+                <Label htmlFor="oldAddress" className="text-sm">
+                  Token Address <span className="text-warning-400">*</span>
+                </Label>
                 <Input
                   id="oldAddress"
                   placeholder="So11111111111111111111111111111111111111112"
@@ -295,13 +477,20 @@ export default function CreateProjectPage() {
                     ...config, 
                     oldToken: { ...config.oldToken, address: e.target.value }
                   })}
-                  className="mt-1"
+                  className={cn(
+                    "mt-1 text-sm h-9",
+                    !config.oldToken.address.trim() && "border-warning-500/50 focus-visible:ring-warning-500"
+                  )}
+                  required
                 />
+                {!config.oldToken.address.trim() && (
+                  <p className="text-xs text-warning-400 mt-0.5">Old token address is required</p>
+                )}
               </div>
               
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-3 grid-cols-2">
                 <div>
-                  <Label htmlFor="oldSymbol">Symbol</Label>
+                  <Label htmlFor="oldSymbol" className="text-sm">Symbol</Label>
                   <Input
                     id="oldSymbol"
                     placeholder="OLD"
@@ -310,12 +499,12 @@ export default function CreateProjectPage() {
                       ...config, 
                       oldToken: { ...config.oldToken, symbol: e.target.value.toUpperCase() }
                     })}
-                    className="mt-1"
+                    className="mt-1 text-sm h-9"
                   />
                 </div>
                 
                 <div>
-                  <Label htmlFor="oldDecimals">Decimals</Label>
+                  <Label htmlFor="oldDecimals" className="text-sm">Decimals</Label>
                   <Input
                     id="oldDecimals"
                     type="number"
@@ -326,7 +515,7 @@ export default function CreateProjectPage() {
                       ...config, 
                       oldToken: { ...config.oldToken, decimals: parseInt(e.target.value) || 0 }
                     })}
-                    className="mt-1"
+                    className="mt-1 text-sm h-9"
                   />
                 </div>
               </div>
@@ -334,15 +523,17 @@ export default function CreateProjectPage() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>New Token</CardTitle>
-              <CardDescription>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">New Token</CardTitle>
+              <CardDescription className="text-xs">
                 The new token that users will receive
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               <div>
-                <Label htmlFor="newAddress">Token Address</Label>
+                <Label htmlFor="newAddress" className="text-sm">
+                  Token Address <span className="text-warning-400">*</span>
+                </Label>
                 <Input
                   id="newAddress"
                   placeholder="So11111111111111111111111111111111111111113"
@@ -351,13 +542,20 @@ export default function CreateProjectPage() {
                     ...config, 
                     newToken: { ...config.newToken, address: e.target.value }
                   })}
-                  className="mt-1"
+                  className={cn(
+                    "mt-1 text-sm h-9",
+                    !config.newToken.address.trim() && "border-warning-500/50 focus-visible:ring-warning-500"
+                  )}
+                  required
                 />
+                {!config.newToken.address.trim() && (
+                  <p className="text-xs text-warning-400 mt-0.5">New token address is required</p>
+                )}
               </div>
               
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-3 grid-cols-2">
                 <div>
-                  <Label htmlFor="newSymbol">Symbol</Label>
+                  <Label htmlFor="newSymbol" className="text-sm">Symbol</Label>
                   <Input
                     id="newSymbol"
                     placeholder="NEW"
@@ -366,12 +564,12 @@ export default function CreateProjectPage() {
                       ...config, 
                       newToken: { ...config.newToken, symbol: e.target.value.toUpperCase() }
                     })}
-                    className="mt-1"
+                    className="mt-1 text-sm h-9"
                   />
                 </div>
                 
                 <div>
-                  <Label htmlFor="newDecimals">Decimals</Label>
+                  <Label htmlFor="newDecimals" className="text-sm">Decimals</Label>
                   <Input
                     id="newDecimals"
                     type="number"
@@ -382,16 +580,16 @@ export default function CreateProjectPage() {
                       ...config, 
                       newToken: { ...config.newToken, decimals: parseInt(e.target.value) || 0 }
                     })}
-                    className="mt-1"
+                    className="mt-1 text-sm h-9"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="isToken2022">Token-2022</Label>
-                  <p className="text-sm text-foreground-muted">
-                    Is this a Token-2022 (Token Extensions) token?
+              <div className="flex items-center justify-between pt-1">
+                <div className="space-y-0">
+                  <Label htmlFor="isToken2022" className="text-sm">Token-2022</Label>
+                  <p className="text-xs text-foreground-muted">
+                    Token Extensions token?
                   </p>
                 </div>
                 <Switch
@@ -405,10 +603,12 @@ export default function CreateProjectPage() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+          </div>
+        )}
 
         {/* Migration Settings */}
-        <TabsContent value="migration" className="space-y-6">
+        {activeTab === 'migration' && (
+          <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Migration Configuration</CardTitle>
@@ -450,104 +650,149 @@ export default function CreateProjectPage() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <Label htmlFor="startDate">Start Date</Label>
+                  <Label htmlFor="startDate">
+                    Start Date <span className="text-warning-400">*</span>
+                  </Label>
                   <Input
                     id="startDate"
                     type="datetime-local"
                     value={config.startDate}
                     onChange={(e) => setConfig({ ...config, startDate: e.target.value })}
-                    className="mt-1"
+                    className={cn(
+                      "mt-1",
+                      !config.startDate && "border-warning-500/50 focus-visible:ring-warning-500"
+                    )}
+                    required
                   />
+                  {!config.startDate && (
+                    <p className="text-xs text-warning-400 mt-1">Start date is required</p>
+                  )}
                 </div>
                 
                 <div>
-                  <Label htmlFor="endDate">End Date</Label>
+                  <Label htmlFor="endDate">
+                    End Date <span className="text-warning-400">*</span>
+                  </Label>
                   <Input
                     id="endDate"
                     type="datetime-local"
                     value={config.endDate}
                     onChange={(e) => setConfig({ ...config, endDate: e.target.value })}
-                    className="mt-1"
+                    className={cn(
+                      "mt-1",
+                      !config.endDate && "border-warning-500/50 focus-visible:ring-warning-500"
+                    )}
+                    required
                   />
+                  {!config.endDate && (
+                    <p className="text-xs text-warning-400 mt-1">End date is required</p>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+          </div>
+        )}
 
         {/* Liquidity Configuration */}
-        <TabsContent value="liquidity" className="space-y-6">
-          <Alert>
-            <TrendingUp className="h-4 w-4" />
-            <AlertDescription>
-              Liquidity pool will be created automatically using Meteora DLMM when the project is activated.
-              The SOL commitment will be used to provide initial liquidity.
-            </AlertDescription>
-          </Alert>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Liquidity Pool Configuration</CardTitle>
-              <CardDescription>
+        {activeTab === 'liquidity' && (
+          <Card className="pt-3 pb-3">
+            <CardHeader className="pb-2 pt-0">
+              <CardTitle className="text-base">Liquidity Pool Configuration</CardTitle>
+              <CardDescription className="text-xs">
                 Configure the initial liquidity pool parameters
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="commitment">SOL Commitment</Label>
-                <Input
-                  id="commitment"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  placeholder="100"
-                  value={config.lpConfig.commitment}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    lpConfig: { ...config.lpConfig, commitment: e.target.value }
-                  })}
-                  className="mt-1"
-                />
-                <p className="text-xs text-foreground-muted mt-1">
-                  Amount of SOL to commit for initial liquidity
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="lockDuration">LP Lock Duration (days)</Label>
-                <Input
-                  id="lockDuration"
-                  type="number"
-                  min="1"
-                  value={config.lpConfig.lockDuration}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    lpConfig: { ...config.lpConfig, lockDuration: parseInt(e.target.value) || 90 }
-                  })}
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="initialPrice">Initial Price (NEW/SOL)</Label>
-                <Input
-                  id="initialPrice"
-                  type="number"
-                  min="0"
-                  step="0.0001"
-                  placeholder="0.001"
-                  value={config.lpConfig.initialPrice}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    lpConfig: { ...config.lpConfig, initialPrice: e.target.value }
-                  })}
-                  className="mt-1"
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-3">
+            <CardContent className="space-y-2">
+              <Alert className="bg-primary-500/10 border-primary-500/30 py-1.5 px-2 w-full">
+                <TrendingUp className="h-3.5 w-3.5 text-primary-400 shrink-0" />
+                <AlertDescription className="text-xs text-primary-300 leading-tight">
+                  <strong>Note:</strong> Liquidity pool will be created automatically using Meteora DLMM when the project is activated. The SOL commitment will be used to provide initial liquidity.
+                </AlertDescription>
+              </Alert>
+              <div className="grid gap-2 sm:grid-cols-3">
                 <div>
-                  <Label htmlFor="binStep">Bin Step</Label>
+                  <Label htmlFor="commitment" className="text-xs">
+                    SOL Commitment <span className="text-warning-400">*</span>
+                  </Label>
+                  <Input
+                    id="commitment"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    placeholder="10"
+                    value={config.lpConfig.commitment}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      lpConfig: { ...config.lpConfig, commitment: e.target.value }
+                    })}
+                    className={cn(
+                      "mt-0.5 h-8 text-sm",
+                      !config.lpConfig.commitment?.trim() && "border-warning-500/50 focus-visible:ring-warning-500"
+                    )}
+                    required
+                  />
+                  {!config.lpConfig.commitment?.trim() && (
+                    <p className="text-xs text-warning-400 mt-0.5 leading-tight">SOL commitment is required</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="lockDuration" className="text-xs">
+                    LP Lock Duration (days) <span className="text-warning-400">*</span>
+                  </Label>
+                  <Input
+                    id="lockDuration"
+                    type="number"
+                    min="1"
+                    value={config.lpConfig.lockDuration}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      lpConfig: { ...config.lpConfig, lockDuration: parseInt(e.target.value) || 60 }
+                    })}
+                    className={cn(
+                      "mt-0.5 h-8 text-sm",
+                      !config.lpConfig.lockDuration && "border-warning-500/50 focus-visible:ring-warning-500"
+                    )}
+                    required
+                  />
+                  {!config.lpConfig.lockDuration && (
+                    <p className="text-xs text-warning-400 mt-0.5 leading-tight">Lock duration is required</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="initialPrice" className="text-xs">
+                    Initial Price (NEW/SOL) <span className="text-warning-400">*</span>
+                  </Label>
+                  <Input
+                    id="initialPrice"
+                    type="number"
+                    min="0"
+                    step="0.0001"
+                    placeholder="0.001"
+                    value={config.lpConfig.initialPrice}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      lpConfig: { ...config.lpConfig, initialPrice: e.target.value }
+                    })}
+                    className={cn(
+                      "mt-0.5 h-8 text-sm",
+                      !config.lpConfig.initialPrice?.trim() && "border-warning-500/50 focus-visible:ring-warning-500"
+                    )}
+                    required
+                  />
+                  {!config.lpConfig.initialPrice?.trim() && (
+                    <p className="text-xs text-warning-400 mt-0.5 leading-tight">Initial price is required</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div>
+                  <Label htmlFor="binStep" className="text-xs">
+                    Bin Step <span className="text-warning-400">*</span>
+                  </Label>
                   <Input
                     id="binStep"
                     type="number"
@@ -557,12 +802,21 @@ export default function CreateProjectPage() {
                       ...config,
                       lpConfig: { ...config.lpConfig, binStep: parseInt(e.target.value) || 100 }
                     })}
-                    className="mt-1"
+                    className={cn(
+                      "mt-0.5 h-8 text-sm",
+                      !config.lpConfig.binStep && "border-warning-500/50 focus-visible:ring-warning-500"
+                    )}
+                    required
                   />
+                  {!config.lpConfig.binStep && (
+                    <p className="text-xs text-warning-400 mt-0.5 leading-tight">Bin step is required</p>
+                  )}
                 </div>
                 
                 <div>
-                  <Label htmlFor="minBinId">Min Bin ID</Label>
+                  <Label htmlFor="minBinId" className="text-xs">
+                    Min Bin ID <span className="text-warning-400">*</span>
+                  </Label>
                   <Input
                     id="minBinId"
                     type="number"
@@ -571,12 +825,21 @@ export default function CreateProjectPage() {
                       ...config,
                       lpConfig: { ...config.lpConfig, minBinId: parseInt(e.target.value) || -1000 }
                     })}
-                    className="mt-1"
+                    className={cn(
+                      "mt-0.5 h-8 text-sm",
+                      config.lpConfig.minBinId === undefined && "border-warning-500/50 focus-visible:ring-warning-500"
+                    )}
+                    required
                   />
+                  {config.lpConfig.minBinId === undefined && (
+                    <p className="text-xs text-warning-400 mt-0.5 leading-tight">Min bin ID is required</p>
+                  )}
                 </div>
                 
                 <div>
-                  <Label htmlFor="maxBinId">Max Bin ID</Label>
+                  <Label htmlFor="maxBinId" className="text-xs">
+                    Max Bin ID <span className="text-warning-400">*</span>
+                  </Label>
                   <Input
                     id="maxBinId"
                     type="number"
@@ -585,29 +848,37 @@ export default function CreateProjectPage() {
                       ...config,
                       lpConfig: { ...config.lpConfig, maxBinId: parseInt(e.target.value) || 1000 }
                     })}
-                    className="mt-1"
+                    className={cn(
+                      "mt-0.5 h-8 text-sm",
+                      config.lpConfig.maxBinId === undefined && "border-warning-500/50 focus-visible:ring-warning-500"
+                    )}
+                    required
                   />
+                  {config.lpConfig.maxBinId === undefined && (
+                    <p className="text-xs text-warning-400 mt-0.5 leading-tight">Max bin ID is required</p>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
         {/* Access Control */}
-        <TabsContent value="access" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Access Control</CardTitle>
-              <CardDescription>
+        {activeTab === 'access' && (
+          <div className="grid gap-3 lg:grid-cols-2">
+          <Card className="pt-3 pb-3">
+            <CardHeader className="pb-2 pt-0">
+              <CardTitle className="text-base">Access Control</CardTitle>
+              <CardDescription className="text-xs">
                 Configure who can participate in the migration
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-2">
               {/* KYC Requirement */}
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="kyc">Require KYC</Label>
-                  <p className="text-sm text-foreground-muted">
+              <div className="flex items-center justify-between pb-2 border-b border-border">
+                <div className="space-y-0">
+                  <Label htmlFor="kyc" className="text-xs">Require KYC</Label>
+                  <p className="text-xs text-foreground-muted leading-tight">
                     Require users to complete KYC before migrating
                   </p>
                 </div>
@@ -620,42 +891,45 @@ export default function CreateProjectPage() {
 
               {/* Allow List */}
               <div>
-                <Label>Allow List (Optional)</Label>
-                <p className="text-xs text-foreground-muted mb-3">
+                <Label className="text-xs">Allow List (Optional)</Label>
+                <p className="text-xs text-foreground-muted mb-1.5 leading-tight">
                   Only these addresses can participate
                 </p>
                 
                 {config.allowList.length > 0 && (
-                  <div className="mb-3 space-y-2">
+                  <div className="mb-1.5 space-y-1">
                     {config.allowList.map((address, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <span className="flex-1 text-sm font-mono bg-surface rounded px-3 py-1">
+                      <div key={index} className="flex items-center gap-1.5">
+                        <span className="flex-1 text-xs font-mono bg-surface rounded px-2 py-0.5 truncate">
                           {address}
                         </span>
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="h-7 w-7 p-0"
                           onClick={() => setConfig({
                             ...config,
                             allowList: config.allowList.filter((_, i) => i !== index)
                           })}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </Button>
                       </div>
                     ))}
                   </div>
                 )}
                 
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <Input
                     placeholder="Wallet address"
                     value={newAllowAddress}
                     onChange={(e) => setNewAllowAddress(e.target.value)}
-                    className="flex-1"
+                    className="flex-1 h-8 text-sm"
                   />
                   <Button
                     variant="outline"
+                    size="sm"
+                    className="h-8"
                     onClick={() => {
                       if (newAllowAddress) {
                         setConfig({
@@ -673,42 +947,45 @@ export default function CreateProjectPage() {
 
               {/* Deny List */}
               <div>
-                <Label>Deny List (Optional)</Label>
-                <p className="text-xs text-foreground-muted mb-3">
+                <Label className="text-xs">Deny List (Optional)</Label>
+                <p className="text-xs text-foreground-muted mb-1.5 leading-tight">
                   These addresses cannot participate
                 </p>
                 
                 {config.denyList.length > 0 && (
-                  <div className="mb-3 space-y-2">
+                  <div className="mb-1.5 space-y-1">
                     {config.denyList.map((address, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <span className="flex-1 text-sm font-mono bg-surface rounded px-3 py-1">
+                      <div key={index} className="flex items-center gap-1.5">
+                        <span className="flex-1 text-xs font-mono bg-surface rounded px-2 py-0.5 truncate">
                           {address}
                         </span>
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="h-7 w-7 p-0"
                           onClick={() => setConfig({
                             ...config,
                             denyList: config.denyList.filter((_, i) => i !== index)
                           })}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </Button>
                       </div>
                     ))}
                   </div>
                 )}
                 
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <Input
                     placeholder="Wallet address"
                     value={newDenyAddress}
                     onChange={(e) => setNewDenyAddress(e.target.value)}
-                    className="flex-1"
+                    className="flex-1 h-8 text-sm"
                   />
                   <Button
                     variant="outline"
+                    size="sm"
+                    className="h-8"
                     onClick={() => {
                       if (newDenyAddress) {
                         setConfig({
@@ -727,46 +1004,48 @@ export default function CreateProjectPage() {
           </Card>
 
           {/* Special Ratios */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Special Exchange Rates</CardTitle>
-              <CardDescription>
+          <Card className="pt-3 pb-3">
+            <CardHeader className="pb-2 pt-0">
+              <CardTitle className="text-base">Special Exchange Rates</CardTitle>
+              <CardDescription className="text-xs">
                 Set custom exchange rates for specific addresses
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-2">
               {config.specialRatios.length > 0 && (
-                <div className="mb-4 space-y-2">
+                <div className="mb-2 space-y-1">
                   {config.specialRatios.map((ratio, index) => (
-                    <div key={index} className="flex items-center gap-2 text-sm">
-                      <span className="flex-1 font-mono bg-surface rounded px-3 py-1">
+                    <div key={index} className="flex items-center gap-1.5 text-xs">
+                      <span className="flex-1 font-mono bg-surface rounded px-2 py-0.5 truncate">
                         {ratio.address}
                       </span>
-                      <span className="text-foreground-muted">
+                      <span className="text-foreground-muted shrink-0">
                         {ratio.oldAmount}:{ratio.newAmount}
                       </span>
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-7 w-7 p-0 shrink-0"
                         onClick={() => setConfig({
                           ...config,
                           specialRatios: config.specialRatios.filter((_, i) => i !== index)
                         })}
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3 w-3" />
                       </Button>
                     </div>
                   ))}
                 </div>
               )}
               
-              <div className="space-y-3">
+              <div className="space-y-1.5">
                 <Input
                   placeholder="Wallet address"
                   value={newSpecialRatio.address}
                   onChange={(e) => setNewSpecialRatio({ ...newSpecialRatio, address: e.target.value })}
+                  className="h-8 text-sm"
                 />
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <Input
                     type="number"
                     min="1"
@@ -776,10 +1055,10 @@ export default function CreateProjectPage() {
                       ...newSpecialRatio, 
                       oldAmount: parseInt(e.target.value) || 1 
                     })}
-                    className="w-24"
+                    className="w-20 h-8 text-sm"
                   />
-                  <span className="text-sm">{config.oldToken.symbol || 'OLD'}</span>
-                  <ArrowRight className="h-4 w-4" />
+                  <span className="text-xs">{config.oldToken.symbol || 'OLD'}</span>
+                  <ArrowRight className="h-3 w-3" />
                   <Input
                     type="number"
                     min="1"
@@ -789,11 +1068,13 @@ export default function CreateProjectPage() {
                       ...newSpecialRatio, 
                       newAmount: parseInt(e.target.value) || 1 
                     })}
-                    className="w-24"
+                    className="w-20 h-8 text-sm"
                   />
-                  <span className="text-sm">{config.newToken.symbol || 'NEW'}</span>
+                  <span className="text-xs">{config.newToken.symbol || 'NEW'}</span>
                   <Button
                     variant="outline"
+                    size="sm"
+                    className="h-8"
                     onClick={() => {
                       if (newSpecialRatio.address) {
                         setConfig({
@@ -810,46 +1091,10 @@ export default function CreateProjectPage() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Navigation */}
-      <Card>
-        <CardContent className="flex items-center justify-between py-4">
-          <Button
-            variant="outline"
-            onClick={handlePrevious}
-            disabled={activeTab === 'basic'}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Previous
-          </Button>
-          
-          {activeTab === 'access' ? (
-            <Button
-              onClick={handleCreateProject}
-              disabled={!config.name || !config.oldToken.address || !config.newToken.address || isCreating}
-            >
-              {isCreating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating Project...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Create Project
-                </>
-              )}
-            </Button>
-          ) : (
-            <Button onClick={handleNext}>
-              Next
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+        </div>
+      </div>
     </div>
     </RequireAdmin>
   );
@@ -924,7 +1169,7 @@ export function PostCreateActions({
     </div>
   );
 }
-
+/*
 <PostCreateActions
   projectId={createdProjectId}
   fundAmount={fundAmount}
@@ -935,3 +1180,4 @@ export function PostCreateActions({
   onActivate={handleActivateProject}
 />
 
+*/

@@ -17,30 +17,30 @@ module.exports = {
     },
     extend: {
       colors: {
-        // W3Swap Brand Colors
+        // W3Swap Brand Colors (w3stream cyan-purple theme)
         primary: {
-          50: '#E6F7FF',
-          100: '#B3EAFF',
-          200: '#80DDFF',
-          300: '#4DD0FF',
-          400: '#1AC3FF',
-          500: '#00D4FF', // Primary cyan
-          600: '#00A6CC',
-          700: '#007999',
-          800: '#004D66',
-          900: '#002033',
+          50: '#ECFEFF',
+          100: '#CFFAFE',
+          200: '#A5F3FC',
+          300: '#67E8F9',
+          400: '#22D3EE',
+          500: '#06B6D4', // cyan-500 (w3stream primary)
+          600: '#0891B2',
+          700: '#0E7490',
+          800: '#155E75',
+          900: '#164E63',
         },
         secondary: {
-          50: '#F4F1FF',
-          100: '#E4DCFF',
-          200: '#D4C7FF',
-          300: '#C4B2FF',
-          400: '#B49DFF',
-          500: '#7B3FF2', // Primary purple
-          600: '#6632C2',
-          700: '#512691',
-          800: '#3C1961',
-          900: '#270D30',
+          50: '#FAF5FF',
+          100: '#F3E8FF',
+          200: '#E9D5FF',
+          300: '#D8B4FE',
+          400: '#C084FC',
+          500: '#A855F7', // purple-500 (w3stream secondary)
+          600: '#9333EA',
+          700: '#7E22CE',
+          800: '#6B21A8',
+          900: '#581C87',
         },
         success: {
           50: '#ECFDF5',
@@ -78,22 +78,36 @@ module.exports = {
           800: '#991B1B',
           900: '#7F1D1D',
         },
-        // Dark theme colors
-        background: '#0F0F0F', // Dark background
-        surface: '#1A1A1A',
-        'surface-2': '#262626',
-        'surface-3': '#404040',
+        // Slate-based dark theme (w3stream inspired)
+        background: '#0F172A', // slate-900
+        surface: '#1E293B', // slate-800
+        'surface-2': '#334155', // slate-700
+        'surface-3': '#475569', // slate-600
         foreground: '#FFFFFF', // Text primary
-        'foreground-muted': '#A1A1AA', // Text secondary
-        border: '#404040',
-        'border-muted': '#262626',
+        'foreground-muted': '#94A3B8', // slate-400 - Text secondary
+        border: '#334155', // slate-700
+        'border-muted': '#1E293B', // slate-800
+        // Additional slate shades for consistency
+        slate: {
+          50: '#F8FAFC',
+          100: '#F1F5F9',
+          200: '#E2E8F0',
+          300: '#CBD5E1',
+          400: '#94A3B8',
+          500: '#64748B',
+          600: '#475569',
+          700: '#334155',
+          800: '#1E293B',
+          900: '#0F172A',
+          950: '#020617',
+        },
         // Chart colors
         chart: {
-          1: '#00D4FF',
-          2: '#7B3FF2',
-          3: '#10B981',
-          4: '#F59E0B',
-          5: '#EF4444',
+          1: '#06B6D4', // cyan-500
+          2: '#A855F7', // purple-500
+          3: '#10B981', // success
+          4: '#F59E0B', // warning
+          5: '#EF4444', // danger
         },
       },
       fontFamily: {
@@ -136,6 +150,7 @@ module.exports = {
         'scale-in': 'scaleIn 0.2s ease-out',
         'pulse-glow': 'pulseGlow 2s infinite',
         'spin-slow': 'spin 3s linear infinite',
+        'shimmer': 'shimmer-move 3s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -155,21 +170,24 @@ module.exports = {
           '100%': { transform: 'scale(1)', opacity: '1' },
         },
         pulseGlow: {
-          '0%, 100%': { boxShadow: '0 0 10px rgba(0, 212, 255, 0.3)' },
-          '50%': { boxShadow: '0 0 20px rgba(0, 212, 255, 0.6)' },
+          '0%, 100%': { boxShadow: '0 0 10px rgba(6, 182, 212, 0.3)' },
+          '50%': { boxShadow: '0 0 20px rgba(6, 182, 212, 0.6)' },
         },
       },
       boxShadow: {
-        glow: '0 0 20px rgba(0, 212, 255, 0.3)',
-        'glow-lg': '0 0 40px rgba(0, 212, 255, 0.4)',
-        'inner-glow': 'inset 0 0 10px rgba(0, 212, 255, 0.2)',
+        glow: '0 0 20px rgba(6, 182, 212, 0.3)',
+        'glow-lg': '0 0 40px rgba(6, 182, 212, 0.4)',
+        'glow-purple': '0 0 20px rgba(168, 85, 247, 0.3)',
+        'glow-purple-lg': '0 0 40px rgba(168, 85, 247, 0.4)',
+        'glow-cyan-purple': '0 0 20px rgba(6, 182, 212, 0.2), 0 0 40px rgba(168, 85, 247, 0.2)',
+        'inner-glow': 'inset 0 0 10px rgba(6, 182, 212, 0.2)',
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
         'cyber-grid': `
-          linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px)
+          linear-gradient(rgba(6, 182, 212, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(6, 182, 212, 0.03) 1px, transparent 1px)
         `,
       },
       backgroundSize: {
@@ -184,27 +202,38 @@ module.exports = {
     function({ addUtilities }) {
       const newUtilities = {
         '.glass': {
-          background: 'rgba(26, 26, 26, 0.8)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(64, 64, 64, 0.3)',
+          background: 'rgba(30, 41, 59, 0.8)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(51, 65, 85, 0.5)',
         },
         '.glass-light': {
-          background: 'rgba(26, 26, 26, 0.6)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(64, 64, 64, 0.2)',
+          background: 'rgba(30, 41, 59, 0.6)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(51, 65, 85, 0.3)',
         },
         '.text-gradient': {
-          background: 'linear-gradient(135deg, #00D4FF 0%, #7B3FF2 100%)',
-          '-webkit-background-clip': 'text',
-          '-webkit-text-fill-color': 'transparent',
-          'background-clip': 'text',
+          background: 'linear-gradient(135deg, #06B6D4 0%, #A855F7 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+        },
+        '.text-gradient-primary': {
+          background: 'linear-gradient(135deg, #06B6D4 0%, #A855F7 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
         },
         '.border-gradient': {
           border: '1px solid transparent',
-          background: 'linear-gradient(135deg, #00D4FF, #7B3FF2) border-box',
-          '-webkit-mask': 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
-          '-webkit-mask-composite': 'xor',
-          'mask-composite': 'exclude',
+          background: 'linear-gradient(135deg, #06B6D4, #A855F7) border-box',
+          WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
+          WebkitMaskComposite: 'xor',
+          maskComposite: 'exclude',
+        },
+        '.bg-gradient-cyan-purple': {
+          background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)',
         },
       };
       addUtilities(newUtilities);

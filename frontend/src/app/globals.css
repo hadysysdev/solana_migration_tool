@@ -4,18 +4,19 @@
 
 @layer base {
   :root {
-    --background: 15 15 15; /* #0F0F0F */
-    --foreground: 255 255 255; /* #FFFFFF */
-    --surface: 26 26 26; /* #1A1A1A */
-    --surface-2: 38 38 38; /* #262626 */
-    --surface-3: 64 64 64; /* #404040 */
-    --border: 64 64 64; /* #404040 */
-    --border-muted: 38 38 38; /* #262626 */
-    --foreground-muted: 161 161 170; /* #A1A1AA */
+    /* Light theme */
+    --background: 255 255 255; /* #FFFFFF */
+    --foreground: 15 23 42; /* #0F172A - slate-900 */
+    --surface: 248 250 252; /* #F8FAFC - slate-50 */
+    --surface-2: 241 245 249; /* #F1F5F9 - slate-100 */
+    --surface-3: 226 232 240; /* #E2E8F0 - slate-200 */
+    --border: 203 213 225; /* #CBD5E1 - slate-300 */
+    --border-muted: 226 232 240; /* #E2E8F0 - slate-200 */
+    --foreground-muted: 100 116 139; /* #64748B - slate-500 */
     
-    /* Brand colors */
-    --primary: 0 212 255; /* #00D4FF */
-    --secondary: 123 63 242; /* #7B3FF2 */
+    /* Brand colors - Cyan & Purple gradient theme */
+    --primary: 6 182 212; /* #06B6D4 - cyan-500 */
+    --secondary: 168 85 247; /* #A855F7 - purple-500 */
     --success: 16 185 129; /* #10B981 */
     --warning: 245 158 11; /* #F59E0B */
     --danger: 239 68 68; /* #EF4444 */
@@ -27,46 +28,88 @@
     --popover-foreground: var(--foreground);
     --card: var(--surface);
     --card-foreground: var(--foreground);
-    --border: var(--border);
     --input: var(--surface-2);
-    --primary-foreground: 15 15 15; /* #0F0F0F */
+    --primary-foreground: 255 255 255; /* Light background */
     --secondary-foreground: 255 255 255; /* #FFFFFF */
-    --muted-foreground: var(--foreground-muted);
     --accent: var(--surface-2);
     --accent-foreground: var(--foreground);
     --destructive: var(--danger);
-    --destructive-foreground: var(--foreground);
+    --destructive-foreground: 255 255 255;
     --ring: var(--primary);
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Slate-based dark theme (w3stream inspired) */
+    --background: 15 23 42; /* #0F172A - slate-900 */
+    --foreground: 255 255 255; /* #FFFFFF */
+    --surface: 30 41 59; /* #1E293B - slate-800 */
+    --surface-2: 51 65 85; /* #334155 - slate-700 */
+    --surface-3: 71 85 105; /* #475569 - slate-600 */
+    --border: 51 65 85; /* #334155 - slate-700 */
+    --border-muted: 30 41 59; /* #1E293B - slate-800 */
+    --foreground-muted: 148 163 184; /* #94A3B8 - slate-400 */
+    
+    --primary-foreground: 15 23 42; /* Dark background */
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke,
+      opacity, box-shadow, transform, filter, backdrop-filter;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
   }
   
   body {
     @apply bg-background text-foreground;
     font-feature-settings: 'rlig' 1, 'calt' 1;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow-x: hidden;
   }
 
-  /* Custom scrollbar */
+  /* Atmospheric overlay effect (w3stream inspired) */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background:
+      radial-gradient(
+        circle at 30% 70%,
+        rgba(6, 182, 212, 0.03) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        circle at 70% 30%,
+        rgba(168, 85, 247, 0.03) 0%,
+        transparent 50%
+      );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Custom scrollbar with gradient (w3stream style) */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-surface;
+    background: rgba(15, 23, 42, 0.5);
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-surface-3 rounded-full;
+    background: linear-gradient(to bottom, #06b6d4, #a855f7);
+    border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-primary-500/50;
+    background: linear-gradient(to bottom, #0891b2, #9333ea);
   }
 
   /* Focus styles */
@@ -135,9 +178,41 @@
     @apply h-11 px-8 text-base;
   }
 
+  /* Glassmorphism card styles (w3stream inspired) */
+  .glass {
+    background: rgba(30, 41, 59, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(51, 65, 85, 0.5);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glass::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(6, 182, 212, 0.8),
+      transparent
+    );
+  }
+
+  .glass-light {
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(51, 65, 85, 0.3);
+  }
+
   /* Card styles */
   .card {
-    @apply glass rounded-lg p-6 shadow-lg;
+    @apply glass rounded-xl p-6 shadow-lg;
   }
 
   .card-header {
@@ -236,6 +311,11 @@
     100% { background-position: 200% 0; }
   }
 
+  @keyframes shimmer-move {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
   /* Status indicators */
   .status-dot {
     @apply w-2 h-2 rounded-full;
@@ -277,8 +357,28 @@
 
   /* Backdrop effects */
   .backdrop-glass {
-    backdrop-filter: blur(8px) saturate(180%);
-    background-color: rgba(26, 26, 26, 0.8);
+    backdrop-filter: blur(20px) saturate(180%);
+    background-color: rgba(30, 41, 59, 0.8);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .backdrop-glass-light {
+    backdrop-filter: blur(12px) saturate(180%);
+    background-color: rgba(30, 41, 59, 0.6);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Glow effects (w3stream inspired) */
+  .glow-cyan {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+  }
+
+  .glow-cyan-purple {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.2), 0 0 40px rgba(168, 85, 247, 0.2);
   }
 
   /* Hide scrollbar but keep functionality */

@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { LogoGraphical } from '@/components/ui/logo';
 import { 
   LayoutDashboard,
   Package,
@@ -13,8 +15,7 @@ import {
   Activity,
   FileText,
   LogOut,
-  ChevronRight,
-  Rocket
+  ChevronRight
 } from 'lucide-react';
 
 const navigation = [
@@ -68,15 +69,35 @@ const navigation = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>(() => {
+    // Initialize with Projects menu open if any child is active
+    const initial: Record<string, boolean> = {};
+    navigation.forEach((item) => {
+      if (item.children) {
+        const hasActiveChild = item.children.some(child => pathname === child.href);
+        if (hasActiveChild || pathname === item.href) {
+          initial[item.name] = true;
+        }
+      }
+    });
+    return initial;
+  });
+
+  const toggleMenu = (itemName: string) => {
+    setOpenMenus(prev => ({
+      ...prev,
+      [itemName]: !prev[itemName]
+    }));
+  };
 
   return (
     <div className="flex h-screen w-64 flex-col bg-surface border-r border-border">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-2 border-b border-border px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-secondary-500">
-          <Rocket className="h-5 w-5 text-white" />
-        </div>
-        <span className="text-lg font-bold">W3Swap Admin</span>
+      <div className="flex h-16 items-center gap-3 border-b border-border px-6 shrink-0">
+        <LogoGraphical size="sm" />
+        <span className="text-sm font-medium text-foreground-muted">
+          Admin
+        </span>
       </div>
 
       {/* Navigation */}
@@ -84,30 +105,44 @@ export function AdminSidebar() {
         {navigation.map((item) => {
           const isActive = pathname === item.href || 
             (item.children && item.children.some(child => pathname === child.href));
+          const isOpen = item.children ? openMenus[item.name] : false;
           
           return (
             <div key={item.name}>
-              <Link
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all',
-                  isActive
-                    ? 'bg-primary-500/10 text-primary-400'
-                    : 'text-foreground-muted hover:bg-surface-2 hover:text-foreground'
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                <span className="flex-1">{item.name}</span>
-                {item.children && (
+              {item.children ? (
+                <button
+                  onClick={() => toggleMenu(item.name)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all',
+                    isActive
+                      ? 'bg-primary-500/10 text-primary-400'
+                      : 'text-foreground-muted hover:bg-surface-2 hover:text-foreground'
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  <span className="flex-1 text-left">{item.name}</span>
                   <ChevronRight className={cn(
                     "h-4 w-4 transition-transform",
-                    isActive && "rotate-90"
+                    isOpen && "rotate-90"
                   )} />
-                )}
-              </Link>
+                </button>
+              ) : (
+                <Link
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all',
+                    isActive
+                      ? 'bg-primary-500/10 text-primary-400'
+                      : 'text-foreground-muted hover:bg-surface-2 hover:text-foreground'
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  <span className="flex-1">{item.name}</span>
+                </Link>
+              )}
               
               {/* Submenu */}
-              {item.children && isActive && (
+              {item.children && isOpen && (
                 <div className="ml-4 mt-1 space-y-1">
                   {item.children.map((child) => (
                     <Link

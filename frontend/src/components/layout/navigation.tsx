@@ -8,17 +8,21 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useIsPlatformAdmin } from '@/lib/roles';
+import { LogoGraphical } from '@/components/ui/logo';
 import { 
   Menu, 
   X, 
-  Zap, 
   LayoutDashboard, 
   ArrowLeftRight, 
-  FileText, 
+  FileText,
   Github,
   Twitter,
-  ExternalLink
+  ExternalLink,
+  Sun,
+  Moon
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 
 const navigationItems = [
   {
@@ -36,6 +40,7 @@ const navigationItems = [
     href: '/admin',
     icon: LayoutDashboard,
     requiresWallet: true,
+    requiresAdmin: true, // Only show if user is admin
   },
   {
     name: 'Docs',
@@ -61,6 +66,8 @@ export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
   const { connected, publicKey } = useWallet();
+  const isAdmin = useIsPlatformAdmin();
+  const { theme, setTheme } = useTheme();
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
@@ -70,13 +77,8 @@ export function Navigation() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center space-x-4">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-secondary-500">
-                <Zap className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-gradient-primary">
-                W3Swap
-              </span>
+            <Link href="/">
+              <LogoGraphical size="md" />
             </Link>
             <Badge variant="primary" size="sm">
               Beta
@@ -91,6 +93,11 @@ export function Navigation() {
               
               // Skip admin link if wallet not connected and it requires wallet
               if (item.requiresWallet && !connected) {
+                return null;
+              }
+
+              // Skip admin link if user is not an admin (but wallet is connected)
+              if (item.requiresAdmin && (!isAdmin || !connected)) {
                 return null;
               }
 
@@ -143,6 +150,17 @@ export function Navigation() {
               {process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'}
             </Badge>
 
+            {/* Theme Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label="Toggle theme"
+            >
+              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            </Button>
+
             {/* Wallet Connection */}
             <WalletMultiButton className="!bg-primary-500 hover:!bg-primary-600 !h-10 !text-sm" />
           </div>
@@ -169,6 +187,11 @@ export function Navigation() {
                 
                 // Skip admin link if wallet not connected and it requires wallet
                 if (item.requiresWallet && !connected) {
+                  return null;
+                }
+
+                // Skip admin link if user is not an admin (but wallet is connected)
+                if (item.requiresAdmin && (!isAdmin || !connected)) {
                   return null;
                 }
 
@@ -225,6 +248,16 @@ export function Navigation() {
                     {process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'}
                   </Badge>
                 </div>
+                {/* Mobile Theme Toggle */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start relative"
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                >
+                  <Sun className="h-4 w-4 mr-2 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                  <Moon className="absolute h-4 w-4 mr-2 left-3 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                  <span>Toggle Theme</span>
+                </Button>
                 <WalletMultiButton className="!bg-primary-500 hover:!bg-primary-600 !h-10 !text-sm !w-full" />
               </div>
             </div>

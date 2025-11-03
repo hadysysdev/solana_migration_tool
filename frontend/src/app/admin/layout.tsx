@@ -12,11 +12,13 @@ export default function AdminLayout({
   
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
-      <AdminSidebar />
+      {/* Sidebar - Fixed */}
+      <div className="fixed left-0 top-0 h-screen z-30">
+        <AdminSidebar />
+      </div>
       
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content - With left margin for sidebar */}
+      <div className="flex-1 flex flex-col ml-64">
         <AdminHeader />
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="mx-auto max-w-7xl">

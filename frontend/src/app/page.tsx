@@ -2,31 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, Shield, Zap, TrendingUp, Globe, Users } from 'lucide-react';
 import Link from 'next/link';
-
-// Simple navigation for the landing page
-function Navigation() {
-  return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-      <div className="container-page flex items-center justify-between h-16">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-secondary-500">
-            <span className="text-white font-bold text-sm">W3</span>
-          </div>
-          <span className="font-bold text-xl">W3Swap</span>
-        </Link>
-        
-        <div className="flex items-center gap-4">
-          <Button asChild variant="ghost">
-            <Link href="/migrate">Migrate</Link>
-          </Button>
-          <Button asChild variant="ghost">
-            <Link href="/admin">Admin</Link>
-          </Button>
-        </div>
-      </div>
-    </nav>
-  );
-}
+import { Navigation } from '@/components/layout/navigation';
 
 export default function HomePage() {
   return (

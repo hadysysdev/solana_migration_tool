@@ -20,6 +20,7 @@ import {
   Wallet
 } from 'lucide-react';
 import Link from 'next/link';
+import { Navigation } from '@/components/layout/navigation';
 import { useProjects } from '@/lib/api';
 
 export default function MigratePage() {
@@ -42,16 +43,7 @@ export default function MigratePage() {
 
   return (
     <div className="min-h-screen">
-      {/* Simple top nav */}
-      <nav className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-        <div className="container-page h-12 flex items-center justify-between">
-          <Link href="/" className="text-sm font-semibold">← Home</Link>
-          <div className="flex items-center gap-3 text-sm">
-            <Link href="/migrate" className="text-foreground-muted hover:text-foreground">Migrate</Link>
-            <Link href="/admin" className="text-foreground-muted hover:text-foreground">Admin</Link>
-          </div>
-        </div>
-      </nav>
+      <Navigation />
       <div className="container-page py-12">
       {/* Hero Section */}
       <div className="text-center mb-12">
@@ -99,9 +91,28 @@ export default function MigratePage() {
       ) : error ? (
         <Card className="text-center py-12">
           <CardContent>
-            <p className="text-danger-400 mb-4">Error loading migration projects</p>
+            <AlertCircle className="h-12 w-12 text-danger-400 mx-auto mb-4" />
+            <p className="text-danger-400 mb-2 font-semibold">Error loading migration projects</p>
+            <p className="text-foreground-muted text-sm mb-4">
+              There was a problem connecting to the server. Please try again.
+            </p>
             <Button onClick={() => window.location.reload()}>
               Retry
+            </Button>
+          </CardContent>
+        </Card>
+      ) : filteredProjects.length === 0 ? (
+        <Card className="text-center py-12">
+          <CardContent>
+            <Rocket className="h-12 w-12 text-foreground-muted mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Active Migrations</h3>
+            <p className="text-foreground-muted mb-4">
+              There are currently no active migration projects available.
+            </p>
+            <Button asChild variant="outline">
+              <Link href="/admin">
+                Create Migration Project
+              </Link>
             </Button>
           </CardContent>
         </Card>
@@ -193,19 +204,6 @@ export default function MigratePage() {
             );
           })}
         </div>
-      )}
-
-      {/* Empty State */}
-      {filteredProjects.length === 0 && (
-        <Card className="text-center py-12">
-          <CardContent>
-            <Rocket className="h-12 w-12 text-foreground-muted mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Projects Found</h3>
-            <p className="text-foreground-muted">
-              No migration projects match your search criteria.
-            </p>
-          </CardContent>
-        </Card>
       )}
 
       {/* Bottom CTA */}

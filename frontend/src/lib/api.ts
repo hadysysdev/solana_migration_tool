@@ -11,24 +11,52 @@ type Row = any;
 export class W3SwapAPI {
   // Backend-backed fetches
   async fetchProjects(): Promise<Project[]> {
-    const res = await fetch(`${BACKEND_URL}/projects`);
-    const rows = await res.json();
-    const toPk = (s?: string) => {
-      try { return s ? new PublicKey(s) : new PublicKey('11111111111111111111111111111111'); } catch { return new PublicKey('11111111111111111111111111111111'); }
-    };
-    return (rows || []).map((r: Row) => ({
-      id: toPk(r.project_pda),
-      projectId: Number(r.project_id),
-      projectAdmin: r.project_admin,
-      oldTokenMint: toPk(r.old_token_mint),
-      newTokenMint: toPk(r.new_token_mint),
-      status: r.status ?? 'Created',
-      totalMigrated: Number(r.total_migrated ?? 0),
-      totalUsers: Number(r.total_users ?? 0),
-      exchangeRateOld: Number(r.exchange_ratio_old ?? 0),
-      exchangeRateNew: Number(r.exchange_ratio_new ?? 0),
-      createdAt: r.created_at ? Math.floor(new Date(r.created_at).getTime() / 1000) : 0,
-    } as Project));
+    try {
+      const res = await fetch(`${BACKEND_URL}/projects`);
+      
+      // If response is not OK, return empty array (treat as no projects, not an error)
+      if (!res.ok) {
+        // Only treat 5xx errors as actual errors, 4xx (like 404) means no projects exist
+        if (res.status >= 500) {
+          throw new Error(`Backend error: ${res.status}`);
+        }
+        // For 4xx errors (like 404), return empty array - no projects exist
+        return [];
+      }
+      
+      const rows = await res.json();
+      
+      // Handle case where response might not be an array
+      if (!Array.isArray(rows)) {
+        return [];
+      }
+      
+      const toPk = (s?: string) => {
+        try { return s ? new PublicKey(s) : new PublicKey('11111111111111111111111111111111'); } catch { return new PublicKey('11111111111111111111111111111111'); }
+      };
+      return (rows || []).map((r: Row) => ({
+        id: toPk(r.project_pda),
+        projectId: Number(r.project_id),
+        projectAdmin: r.project_admin,
+        oldTokenMint: toPk(r.old_token_mint),
+        newTokenMint: toPk(r.new_token_mint),
+        status: r.status ?? 'Created',
+        totalMigrated: Number(r.total_migrated ?? 0),
+        totalUsers: Number(r.total_users ?? 0),
+        exchangeRateOld: Number(r.exchange_ratio_old ?? 0),
+        exchangeRateNew: Number(r.exchange_ratio_new ?? 0),
+        createdAt: r.created_at ? Math.floor(new Date(r.created_at).getTime() / 1000) : 0,
+      } as Project));
+    } catch (error) {
+      // Only throw if it's a network error or actual server error
+      // For missing data or empty responses, return empty array
+      if (error instanceof Error && error.message.includes('Backend error')) {
+        throw error;
+      }
+      // For other errors (like network issues), check if it's a real error
+      console.warn('Error fetching projects, returning empty array:', error);
+      return [];
+    }
   }
 
   async fetchProject(projectId: number, projectAdmin?: string): Promise<Project | null> {
