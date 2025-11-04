@@ -169,4 +169,19 @@ pub enum W3SwapError {
     
     #[msg("Vault balance too low to resume - please top up vault")]
     InsufficientVaultBalanceToResume,
+    
+    #[msg("Invalid route account structure")]
+    InvalidRouteAccount,
+    
+    #[msg("Route exceeds maximum hop count")]
+    RouteExceedsMaxHops,
+    
+    #[msg("Insufficient compute budget for route")]
+    InsufficientComputeBudget,
+    
+    #[msg("Invalid Jupiter program state")]
+    InvalidJupiterProgramState,
+    
+    #[msg("Invalid Meteora pool configuration")]
+    InvalidMeteoraPoolConfig,
 }
