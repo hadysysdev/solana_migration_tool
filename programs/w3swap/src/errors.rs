@@ -169,4 +169,31 @@ pub enum W3SwapError {
     
     #[msg("Vault balance too low to resume - please top up vault")]
     InsufficientVaultBalanceToResume,
+
+    #[msg("Liquidation not allowed - project not in correct status")]
+    LiquidationNotAllowed,
+
+    #[msg("Liquidation already in progress - reentrancy not allowed")]
+    LiquidationInProgress,
+
+    #[msg("No old tokens remaining to liquidate")]
+    NoOldTokensRemaining,
+
+    #[msg("Invalid swap backend specified")]
+    InvalidSwapBackend,
+
+    #[msg("Liquidation already completed")]
+    LiquidationAlreadyCompleted,
+
+    #[msg("Invalid remaining accounts for liquidation")]
+    InvalidLiquidationAccounts,
+
+    #[msg("Liquidation amount exceeds available balance")]
+    LiquidationAmountExceedsBalance,
+
+    #[msg("Slippage protection triggered during liquidation")]
+    LiquidationSlippageExceeded,
+
+    #[msg("Invalid liquidation account configuration")]
+    InvalidLiquidationAccountConfig,
 }
