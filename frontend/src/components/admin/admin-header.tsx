@@ -13,9 +13,9 @@ export function AdminHeader() {
   const isAdmin = useIsPlatformAdmin();
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
+    <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 overflow-x-auto min-w-0">
       {/* Search */}
-      <div className="relative flex-1 max-w-md">
+      <div className="relative flex-1 max-w-md min-w-0">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
         <Input
           type="search"
@@ -25,7 +25,7 @@ export function AdminHeader() {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 shrink-0">
         {/* Quick Nav */}
         <Button asChild variant="ghost">
           <a href="/">Home</a>
