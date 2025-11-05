@@ -156,6 +156,30 @@ pub struct LpWithdrawn {
 
 // Refund and sweep events removed
 
+/// Old token batch swap executed during liquidation
+#[event]
+pub struct OldTokenBatchSwapped {
+    pub project_id: u64,
+    pub project_pda: Pubkey,
+    pub backend: String, // "Jupiter" or "Meteora"
+    pub amount_in: u64,
+    pub amount_out: u64,
+    pub remaining_balance: u64,
+    pub slot: u64,
+    pub timestamp: i64,
+}
+
+/// Old token liquidation completed
+#[event]
+pub struct OldTokenLiquidationComplete {
+    pub project_id: u64,
+    pub project_pda: Pubkey,
+    pub total_old_sold: u64,
+    pub total_wsol_received: u64,
+    pub backend: String, // "Jupiter" or "Meteora"
+    pub timestamp: i64,
+}
+
 /// Vault balance low event (triggers auto-pause)
 #[event]
 pub struct VaultBalanceLow {

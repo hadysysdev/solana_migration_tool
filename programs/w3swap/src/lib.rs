@@ -5,9 +5,10 @@ pub mod events;
 pub mod instructions;
 pub mod state;
 pub mod utils;
+pub mod adapters;
 
 use instructions::*;
-use state::{AdminAction, CreateProjectParams, LpConfiguration};
+use state::{AdminAction, CreateProjectParams, LpConfiguration, SwapBackend};
 
 declare_id!("9qPx5xbqg4xZp3BWbtCNGy3GVfZ4WeaeraMUvLBSdcKh");
 
@@ -387,6 +388,17 @@ pub mod w3swap {
         });
 
         Ok(())
+    }
+
+    /// Swap old tokens in batches via Jupiter or Meteora
+    pub fn swap_old_token_batch(
+        ctx: Context<SwapOldTokenBatch>,
+        backend: SwapBackend,
+        amount_in: u64,
+        min_out: u64,
+        ix_data: Vec<u8>,
+    ) -> Result<()> {
+        instructions::swap_old_token_batch(ctx, backend, amount_in, min_out, ix_data)
     }
 
     // Refund and sweep instructions removed

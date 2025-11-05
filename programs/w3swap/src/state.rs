@@ -213,6 +213,21 @@ pub struct Project {
     /// Deny list entries (only allocated if enabled)
     pub denylist: Option<Vec<Pubkey>>,
     
+    /// Total old tokens sold during liquidation
+    pub total_old_sold: u64,
+    
+    /// Total WSOL received from liquidation
+    pub total_wsol_received: u64,
+    
+    /// Liquidation backend being used
+    pub liquidation_backend: Option<SwapBackend>,
+    
+    /// Last slot where liquidation was processed
+    pub last_liquidation_slot: u64,
+    
+    /// Flag to prevent reentrant liquidation calls
+    pub liquidation_in_progress: bool,
+    
     /// Bump seed for PDA derivation
     pub bump: u8,
 }
@@ -256,6 +271,11 @@ impl Project {
         1 + // denylist_enabled
         1 + 4 + (32 * MAX_ALLOWLIST_ENTRIES) + // allowlist (Option + Vec)
         1 + 4 + (32 * MAX_ALLOWLIST_ENTRIES) + // denylist (Option + Vec)
+        8 + // total_old_sold
+        8 + // total_wsol_received
+        1 + 1 + // liquidation_backend (Option + SwapBackend)
+        8 + // last_liquidation_slot
+        1 + // liquidation_in_progress
         1; // bump
 
     /// Calculate current end time including pause extensions
@@ -375,6 +395,13 @@ impl Project {
     // Protection/refund timing removed
 }
 
+/// Swap backend selection for liquidation
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, Debug)]
+pub enum SwapBackend {
+    Meteora,
+    Jupiter,
+}
+
 /// Project status enumeration
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub enum ProjectStatus {
@@ -388,6 +415,12 @@ pub enum ProjectStatus {
     Paused,
     /// Project migration period ended
     Ended,
+    /// Project migration completed, ready for liquidation
+    Migrated,
+    /// Project liquidation in progress
+    Liquidating,
+    /// Project liquidation completed
+    LiquidationComplete,
     /// Project finalized (LP created)
     Finalized,
 }
