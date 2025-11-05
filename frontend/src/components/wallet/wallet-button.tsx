@@ -7,11 +7,42 @@ import { Badge } from '@/components/ui/badge';
 import { Wallet, Copy, ExternalLink, LogOut } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { truncateAddress, copyToClipboard } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 export function WalletButton() {
   const { connected, publicKey, disconnect } = useWallet();
   const [showDetails, setShowDetails] = useState(false);
+  const buttonRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
+
+  // Calculate dropdown position and close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        buttonRef.current && 
+        dropdownRef.current && 
+        !buttonRef.current.contains(event.target as Node) &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowDetails(false);
+      }
+    };
+
+    if (showDetails && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 8,
+        right: window.innerWidth - rect.right + window.scrollX,
+      });
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDetails]);
 
   if (!connected || !publicKey) {
     return (
@@ -30,23 +61,32 @@ export function WalletButton() {
   };
 
   return (
-    <div className="relative">
-      <Button
-        variant="outline"
-        onClick={() => setShowDetails(!showDetails)}
-        className="flex items-center gap-2"
-      >
-        <Wallet className="h-4 w-4" />
-        <span className="hidden sm:inline">
-          {truncateAddress(publicKey.toString())}
-        </span>
-        <Badge variant="success" className="hidden sm:flex">
-          Connected
-        </Badge>
-      </Button>
+    <>
+      <div className="relative" ref={buttonRef}>
+        <Button
+          variant="outline"
+          onClick={() => setShowDetails(!showDetails)}
+          className="flex items-center gap-2"
+        >
+          <Wallet className="h-4 w-4" />
+          <span className="hidden sm:inline">
+            {truncateAddress(publicKey.toString())}
+          </span>
+          <Badge variant="success" className="hidden sm:flex">
+            Connected
+          </Badge>
+        </Button>
+      </div>
 
-      {showDetails && (
-        <Card className="absolute top-full right-0 mt-2 w-64 z-50 shadow-lg border">
+      {showDetails && typeof window !== 'undefined' && createPortal(
+        <Card 
+          ref={dropdownRef}
+          className="fixed w-64 z-[9999] shadow-lg border"
+          style={{
+            top: `${dropdownPosition.top}px`,
+            right: `${dropdownPosition.right}px`,
+          }}
+        >
           <CardContent className="p-4 space-y-3">
             <div>
               <p className="text-sm font-medium">Wallet Address</p>
@@ -89,9 +129,10 @@ export function WalletButton() {
               Disconnect
             </Button>
           </CardContent>
-        </Card>
+        </Card>,
+        document.body
       )}
-    </div>
+    </>
   );
 }
 
