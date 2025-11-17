@@ -6,7 +6,6 @@ pub mod events;
 pub mod instructions;
 pub mod state;
 pub mod utils;
-pub mod adapters;
 
 use instructions::*;
 use state::{AdminAction, CreateProjectParams, LpConfiguration, SwapBackend};
