@@ -12,14 +12,15 @@ pub mod jupiter;
 
 // Re-export commonly used types and functions
 pub use meteora::{
-    MeteoraInstruction, SwapParams, DlmmSwapBuilder, AmmSwapBuilder, DlmmSwapAccounts, AmmSwapAccounts,
-    METEORA_DLMM_PROGRAM_ID, METEORA_AMM_PROGRAM_ID,
-    METEORA_DLMM_PROGRAM_ID_DEVNET, METEORA_AMM_PROGRAM_ID_DEVNET,
+    AmmSwapAccounts, AmmSwapBuilder, MeteoraAdapter, MeteoraInstruction, SwapParams,
+    DlmmSwapAccounts, DlmmSwapBuilder,
+    METEORA_AMM_PROGRAM_ID, METEORA_AMM_PROGRAM_ID_DEVNET,
+    METEORA_DLMM_PROGRAM_ID, METEORA_DLMM_PROGRAM_ID_DEVNET,
 };
 
 pub use jupiter::{
-    JupiterInstruction, JupiterSwapParams, JupiterMode, JupiterRouteBuilder, JupiterRouteAccounts,
-    JUPITER_PROGRAM_ID, JUPITER_PROGRAM_ID_DEVNET,
+    JupiterAdapter, JupiterInstruction, JupiterMode, JupiterRouteAccounts, JupiterRouteBuilder,
+    JupiterSwapParams, JUPITER_PROGRAM_ID, JUPITER_PROGRAM_ID_DEVNET,
 };
 
 // Common validation utilities

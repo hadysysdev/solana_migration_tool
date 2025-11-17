@@ -11,7 +11,7 @@ use crate::state::Project;
 /// Example function showing how to integrate Meteora adapter
 /// with swap_old_token_batch instruction
 pub fn execute_meteora_batch_swap<'info>(
-    project: &Account<Project>,
+    _project: &Account<Project>,
     remaining_accounts: &[AccountInfo<'info>],
     amount_in: u64,
     minimum_amount_out: u64,
@@ -67,7 +67,7 @@ pub fn execute_meteora_batch_swap<'info>(
 /// Example function showing how to integrate Jupiter adapter
 /// with swap_old_token_batch instruction
 pub fn execute_jupiter_batch_swap<'info>(
-    project: &Account<Project>,
+    _project: &Account<Project>,
     remaining_accounts: &[AccountInfo<'info>],
     amount_in: u64,
     minimum_amount_out: u64,

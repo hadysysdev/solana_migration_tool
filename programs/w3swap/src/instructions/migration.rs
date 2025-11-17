@@ -64,7 +64,7 @@ pub struct Migrate<'info> {
     
     #[account(
         mut,
-        constraint = project.is_user_allowed(&user.key()) @ W3SwapError::UserNotAllowed
+        constraint = project.is_user_allowed(&user.key()) @ W3SwapError::UserNotAllowedToMigrate
     )]
     pub user: Signer<'info>,
     pub associated_token_program: Program<'info, anchor_spl::associated_token::AssociatedToken>,
@@ -98,7 +98,7 @@ pub fn migrate(
     
     // Check user is allowed to migrate
     if !project.is_user_allowed(&ctx.accounts.user.key()) {
-        return Err(W3SwapError::UserNotAllowed.into());
+        return Err(W3SwapError::UserNotAllowedToMigrate.into());
     }
     
     // Calculate new tokens to receive (pass user key for special ratio check)
