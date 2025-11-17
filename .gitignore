@@ -54,6 +54,7 @@ QUICKSTART.md
 IMPLEMENTATION.md
 TESTING.md
 PRD/
+AGENTS.md
 
 
 # Security - Never commit private keys!
@@ -64,6 +65,7 @@ keypairs/
 wallet.json
 id.json
 *.wallet
+custom-wallet
 
 # Solana/Anchor specific
 .anchor/
