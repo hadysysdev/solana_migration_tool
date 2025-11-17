@@ -1,11 +1,13 @@
+use crate::errors::W3SwapError;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::instruction::{AccountMeta, Instruction};
-use crate::errors::W3SwapError;
 
 pub const METEORA_DLMM_PROGRAM_ID: Pubkey = pubkey!("Eo7WjKq67rjJQSZxS6z3LStQTw2d3DpyzJMzvJ4w5eK");
 pub const METEORA_AMM_PROGRAM_ID: Pubkey = pubkey!("9PSWcv16Mo3MHuvb6jVWeNseyX2VVaodui6Tn6Pvx93w");
-pub const METEORA_DLMM_PROGRAM_ID_DEVNET: Pubkey = pubkey!("6kGxC9y1yvE4s46HoPazTA7kGEXUXMaLLq5yRvCNrPjX");
-pub const METEORA_AMM_PROGRAM_ID_DEVNET: Pubkey = pubkey!("Cq4HqeUbmJsteVEhDWUpAJZciVYjX4jG3Ejj6mUeJ8Vf");
+pub const METEORA_DLMM_PROGRAM_ID_DEVNET: Pubkey =
+    pubkey!("6kGxC9y1yvE4s46HoPazTA7kGEXUXMaLLq5yRvCNrPjX");
+pub const METEORA_AMM_PROGRAM_ID_DEVNET: Pubkey =
+    pubkey!("Cq4HqeUbmJsteVEhDWUpAJZciVYjX4jG3Ejj6mUeJ8Vf");
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MeteoraInstruction {
@@ -94,7 +96,10 @@ impl<'info> DlmmSwapBuilder<'info> {
             self.accounts.user_authority.key(),
             self.accounts.user_authority.is_signer,
         ));
-        metas.push(AccountMeta::new_readonly(self.accounts.token_program.key(), false));
+        metas.push(AccountMeta::new_readonly(
+            self.accounts.token_program.key(),
+            false,
+        ));
         if let Some(system_program) = &self.accounts.system_program {
             metas.push(AccountMeta::new_readonly(system_program.key(), false));
         }
@@ -104,7 +109,11 @@ impl<'info> DlmmSwapBuilder<'info> {
         data.extend_from_slice(&self.params.minimum_amount_out.to_le_bytes());
         data.push(self.params.a_to_b as u8);
 
-        Ok(Instruction { program_id, accounts: metas, data })
+        Ok(Instruction {
+            program_id,
+            accounts: metas,
+            data,
+        })
     }
 }
 
@@ -133,7 +142,10 @@ impl<'info> AmmSwapBuilder<'info> {
             self.accounts.user_authority.key(),
             self.accounts.user_authority.is_signer,
         ));
-        metas.push(AccountMeta::new_readonly(self.accounts.token_program.key(), false));
+        metas.push(AccountMeta::new_readonly(
+            self.accounts.token_program.key(),
+            false,
+        ));
         if let Some(system_program) = &self.accounts.system_program {
             metas.push(AccountMeta::new_readonly(system_program.key(), false));
         }
@@ -143,7 +155,11 @@ impl<'info> AmmSwapBuilder<'info> {
         data.extend_from_slice(&self.params.minimum_amount_out.to_le_bytes());
         data.push(self.params.a_to_b as u8);
 
-        Ok(Instruction { program_id, accounts: metas, data })
+        Ok(Instruction {
+            program_id,
+            accounts: metas,
+            data,
+        })
     }
 }
 

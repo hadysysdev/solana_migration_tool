@@ -1,12 +1,12 @@
 //! Example usage of Meteora and Jupiter adapters
-//! 
+//!
 //! This module demonstrates how to use the adapters in the context of
 //! batched old-token liquidation operations.
 
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::system_program;
 use crate::adapters::*;
 use crate::state::Project;
+use anchor_lang::prelude::*;
+use anchor_lang::solana_program::system_program;
 
 /// Example function showing how to integrate Meteora adapter
 /// with swap_old_token_batch instruction
@@ -19,9 +19,9 @@ pub fn execute_meteora_batch_swap<'info>(
 ) -> Result<()> {
     // Example: Swap token A for WSOL using Meteora DLMM
     // remaining_accounts should be ordered as:
-    // [meteora_program, pool, token_vault_a, token_vault_b, user_source, user_destination, 
+    // [meteora_program, pool, token_vault_a, token_vault_b, user_source, user_destination,
     //  project_authority, token_program, (optional) system_program]
-    
+
     if remaining_accounts.len() < 8 {
         return Err(crate::errors::W3SwapError::InvalidInstructionData.into());
     }
@@ -59,7 +59,8 @@ pub fn execute_meteora_batch_swap<'info>(
         &instruction,
         remaining_accounts,
         signer_seeds,
-    ).map_err(|_| crate::errors::W3SwapError::CpiCallFailed)?;
+    )
+    .map_err(|_| crate::errors::W3SwapError::CpiCallFailed)?;
 
     Ok(())
 }
@@ -75,10 +76,10 @@ pub fn execute_jupiter_batch_swap<'info>(
 ) -> Result<()> {
     // Example: Multi-hop route using Jupiter
     // remaining_accounts should be ordered as:
-    // [jupiter_program, user_source, user_source_owner, user_destination, 
-    //  user_destination_owner, token_program, system_program, 
+    // [jupiter_program, user_source, user_source_owner, user_destination,
+    //  user_destination_owner, token_program, system_program,
     //  (optional) jupiter_program_state, ...route_accounts...]
-    
+
     if remaining_accounts.len() < 7 {
         return Err(crate::errors::W3SwapError::InvalidInstructionData.into());
     }
@@ -99,13 +100,19 @@ pub fn execute_jupiter_batch_swap<'info>(
         user_destination_owner: remaining_accounts[4].clone(), // User authority
         token_program: remaining_accounts[5].clone(),
         system_program: remaining_accounts[6].clone(),
-        jupiter_program_state: if remaining_accounts.len() > 7 && remaining_accounts[7].owner == &JUPITER_PROGRAM_ID {
+        jupiter_program_state: if remaining_accounts.len() > 7
+            && remaining_accounts[7].owner == &JUPITER_PROGRAM_ID
+        {
             Some(remaining_accounts[7].clone())
         } else {
             None
         },
         route_accounts: if remaining_accounts.len() > 7 {
-            let start_idx = if remaining_accounts[7].owner == &JUPITER_PROGRAM_ID { 8 } else { 7 };
+            let start_idx = if remaining_accounts[7].owner == &JUPITER_PROGRAM_ID {
+                8
+            } else {
+                7
+            };
             remaining_accounts[start_idx..].to_vec()
         } else {
             vec![]
@@ -118,13 +125,9 @@ pub fn execute_jupiter_batch_swap<'info>(
     } else {
         JupiterInstruction::Swap
     };
-    
-    let builder = JupiterRouteBuilder::new(
-        jupiter_accounts,
-        jupiter_params,
-        instruction_type,
-    );
-    
+
+    let builder = JupiterRouteBuilder::new(jupiter_accounts, jupiter_params, instruction_type);
+
     let instruction = builder.build()?;
 
     // Execute the CPI with project signer
@@ -132,7 +135,8 @@ pub fn execute_jupiter_batch_swap<'info>(
         &instruction,
         remaining_accounts,
         signer_seeds,
-    ).map_err(|_| crate::errors::W3SwapError::CpiCallFailed)?;
+    )
+    .map_err(|_| crate::errors::W3SwapError::CpiCallFailed)?;
 
     Ok(())
 }
@@ -164,8 +168,9 @@ pub fn validate_batch_swap_preconditions(
     // Extract amount from token account data (offset 64-72)
     let amount_bytes = &source_data[64..72];
     let current_balance = u64::from_le_bytes(
-        amount_bytes.try_into()
-            .map_err(|_| crate::errors::W3SwapError::InvalidAccountOwner)?
+        amount_bytes
+            .try_into()
+            .map_err(|_| crate::errors::W3SwapError::InvalidAccountOwner)?,
     );
 
     if current_balance < amount_in {
@@ -192,7 +197,7 @@ pub fn validate_batch_swap_preconditions(
 }
 
 /// Example of how to structure remaining_accounts for Meteora swap
-/// 
+///
 /// The remaining_accounts should be ordered as follows:
 /// 1. Meteora DLMM program
 /// 2. Pool account
@@ -205,7 +210,7 @@ pub fn get_meteora_remaining_accounts_structure() -> Vec<&'static str> {
     vec![
         "meteora_program",
         "pool",
-        "token_vault_a", 
+        "token_vault_a",
         "token_vault_b",
         "project_authority",
         "token_program",
@@ -214,7 +219,7 @@ pub fn get_meteora_remaining_accounts_structure() -> Vec<&'static str> {
 }
 
 /// Example of how to structure remaining_accounts for Jupiter swap
-/// 
+///
 /// The remaining_accounts should be ordered as follows:
 /// 1. Jupiter program
 /// 2. User source token account
@@ -230,7 +235,7 @@ pub fn get_jupiter_remaining_accounts_structure() -> Vec<&'static str> {
         "jupiter_program",
         "user_source",
         "user_source_owner",
-        "user_destination", 
+        "user_destination",
         "user_destination_owner",
         "token_program",
         "system_program",
@@ -258,12 +263,7 @@ pub fn execute_batch_swap_with_fallback<'info>(
         return Err(crate::errors::W3SwapError::InvalidInstructionData.into());
     };
 
-    validate_batch_swap_preconditions(
-        project,
-        user_source_account,
-        amount_in,
-        minimum_amount_out,
-    )?;
+    validate_batch_swap_preconditions(project, user_source_account, amount_in, minimum_amount_out)?;
 
     // Try Meteora first (if available)
     if remaining_accounts.len() >= 8 {

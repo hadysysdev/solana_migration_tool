@@ -1,6 +1,6 @@
+use crate::errors::W3SwapError;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::instruction::{AccountMeta, Instruction};
-use crate::errors::W3SwapError;
 
 pub const JUPITER_PROGRAM_ID: Pubkey = pubkey!("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
 pub const JUPITER_PROGRAM_ID_DEVNET: Pubkey = JUPITER_PROGRAM_ID;
@@ -58,7 +58,11 @@ impl<'info> JupiterRouteBuilder<'info> {
         params: JupiterSwapParams,
         instruction: JupiterInstruction,
     ) -> Self {
-        Self { accounts, params, instruction }
+        Self {
+            accounts,
+            params,
+            instruction,
+        }
     }
 
     pub fn build(&self) -> Result<Instruction> {
@@ -80,8 +84,14 @@ impl<'info> JupiterRouteBuilder<'info> {
             self.accounts.user_destination_owner.key(),
             self.accounts.user_destination_owner.is_signer,
         ));
-        metas.push(AccountMeta::new_readonly(self.accounts.token_program.key(), false));
-        metas.push(AccountMeta::new_readonly(self.accounts.system_program.key(), false));
+        metas.push(AccountMeta::new_readonly(
+            self.accounts.token_program.key(),
+            false,
+        ));
+        metas.push(AccountMeta::new_readonly(
+            self.accounts.system_program.key(),
+            false,
+        ));
         if let Some(state) = &self.accounts.jupiter_program_state {
             metas.push(AccountMeta::new_readonly(state.key(), false));
         }
@@ -101,7 +111,11 @@ impl<'info> JupiterRouteBuilder<'info> {
             JupiterMode::ExactOut => 1,
         });
 
-        Ok(Instruction { program_id, accounts: metas, data })
+        Ok(Instruction {
+            program_id,
+            accounts: metas,
+            data,
+        })
     }
 }
 
