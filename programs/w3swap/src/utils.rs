@@ -234,3 +234,31 @@ pub fn days_to_seconds(days: u64) -> i64 {
     (days * 24 * 60 * 60) as i64
 }
 
+/// Validates swap backend (Jupiter or Meteora)
+pub fn validate_swap_backend(backend: &str, program_id: &Pubkey) -> Result<()> {
+    match backend {
+        "Jupiter" => {
+            const JUPITER_PROGRAM_ID: Pubkey = pubkey!("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
+            if program_id != &JUPITER_PROGRAM_ID {
+                return Err(W3SwapError::InvalidSwapBackend.into());
+            }
+        }
+        "Meteora" => {
+            const METEORA_DLMM_PROGRAM_ID: Pubkey = pubkey!("Eo7WjKq67rjJQSZxS6z3LStQTw2d3DpyzJMzvJ4w5eK");
+            if program_id != &METEORA_DLMM_PROGRAM_ID {
+                return Err(W3SwapError::InvalidSwapBackend.into());
+            }
+        }
+        _ => return Err(W3SwapError::InvalidSwapBackend.into()),
+    }
+    Ok(())
+}
+
+/// Creates seeds for liquidation state PDA (if needed in future)
+pub fn liquidation_state_seeds(project: &Pubkey) -> Vec<Vec<u8>> {
+    vec![
+        b"liquidation_state".to_vec(),
+        project.to_bytes().to_vec(),
+    ]
+}
+

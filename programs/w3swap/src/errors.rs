@@ -48,115 +48,40 @@ pub enum W3SwapError {
     MigrationNotActive,
     
     #[msg("User not allowed to migrate")]
-    UserNotAllowed,
+    UserNotAllowedToMigrate,
     
-    #[msg("User is on deny list")]
-    UserOnDenyList,
+    #[msg("Migration already completed")]
+    MigrationAlreadyCompleted,
     
-    #[msg("User not on allow list")]
-    UserNotOnAllowList,
+    #[msg("Migration expired")]
+    MigrationExpired,
     
-    #[msg("Insufficient tokens in vault")]
-    InsufficientTokensInVault,
+    #[msg("Invalid migration amount")]
+    InvalidMigrationAmount,
     
-    #[msg("Insufficient SOL for protection")]
-    InsufficientSolForProtection,
+    #[msg("Insufficient token balance for migration")]
+    InsufficientTokenBalance,
     
-    #[msg("Project not funded")]
-    ProjectNotFunded,
+    #[msg("New token account not provided")]
+    NewTokenAccountNotProvided,
     
-    #[msg("Migration period has ended")]
-    MigrationPeriodEnded,
+    #[msg("Old token account not provided")]
+    OldTokenAccountNotProvided,
     
-    #[msg("Migration period has not ended")]
-    MigrationPeriodNotEnded,
+    #[msg("Invalid token account owner")]
+    InvalidTokenAccountOwner,
     
-    #[msg("LP creation deadline not reached")]
-    LpCreationDeadlineNotReached,
+    #[msg("Token account is frozen")]
+    TokenAccountFrozen,
     
-    #[msg("LP already created")]
-    LpAlreadyCreated,
+    #[msg("Invalid exchange rate")]
+    InvalidExchangeRate,
     
-    #[msg("LP not created")]
-    LpNotCreated,
+    #[msg("Exchange rate already set")]
+    ExchangeRateAlreadySet,
     
-    #[msg("LP still locked")]
-    LpStillLocked,
-    
-    #[msg("Lockup period has not ended")]
-    LockupPeriodNotEnded,
-    
-    #[msg("Recovery period not started")]
-    RecoveryPeriodNotStarted,
-    
-    #[msg("Refund already claimed")]
-    RefundAlreadyClaimed,
-    
-    #[msg("No refund available")]
-    NoRefundAvailable,
-    
-    #[msg("Protection not enabled")]
-    ProtectionNotEnabled,
-    
-    #[msg("Program not allowed for routes")]
-    ProgramNotAllowedForRoutes,
-    
-    #[msg("Minimum output not met")]
-    MinimumOutputNotMet,
-    
-    #[msg("Invalid token program")]
-    InvalidTokenProgram,
-    
-    #[msg("Amount is zero")]
-    AmountIsZero,
-    
-    #[msg("Arithmetic overflow")]
-    ArithmeticOverflow,
-    
-    #[msg("Invalid PDA seeds")]
-    InvalidPdaSeeds,
-    
-    #[msg("Account already initialized")]
-    AccountAlreadyInitialized,
-    
-    #[msg("Account not initialized")]
-    AccountNotInitialized,
-    
-    #[msg("Invalid account owner")]
-    InvalidAccountOwner,
-    
-    #[msg("Token mint mismatch")]
-    TokenMintMismatch,
-    
-    #[msg("Invalid vault authority")]
-    InvalidVaultAuthority,
-    
-    #[msg("CPI call failed")]
-    CpiCallFailed,
-    
-    #[msg("Invalid instruction data")]
-    InvalidInstructionData,
-    
-    #[msg("Route execution failed")]
-    RouteExecutionFailed,
-    
-    #[msg("Slippage tolerance exceeded")]
-    SlippageToleranceExceeded,
-    
-    #[msg("Special ratio list is empty")]
-    EmptySpecialRatioList,
-    
-    #[msg("Special ratio list is full")]
-    SpecialRatioListFull,
-    
-    #[msg("Invalid special ratio configuration")]
-    InvalidSpecialRatioConfig,
-    
-    #[msg("Invalid SOL commitment amount")]
-    InvalidSolCommitment,
-    
-    #[msg("SOL commitment is below platform minimum")]
-    InsufficientSolCommitment,
+    #[msg("Exchange rate not set")]
+    ExchangeRateNotSet,
     
     #[msg("Invalid LP creation deadline (1-30 days)")]
     InvalidLpCreationDeadline,
@@ -169,4 +94,51 @@ pub enum W3SwapError {
     
     #[msg("Vault balance too low to resume - please top up vault")]
     InsufficientVaultBalanceToResume,
+    
+    // Route-related errors (from routing feature)
+    #[msg("Invalid route account structure")]
+    InvalidRouteAccount,
+    
+    #[msg("Route exceeds maximum hop count")]
+    RouteExceedsMaxHops,
+    
+    #[msg("Insufficient compute budget for route")]
+    InsufficientComputeBudget,
+    
+    #[msg("Invalid Jupiter program state")]
+    InvalidJupiterProgramState,
+    
+    #[msg("Invalid Meteora pool configuration")]
+    InvalidMeteoraPoolConfig,
+    
+    // Liquidation-related errors (from liquidation feature)
+    #[msg("Liquidation not allowed - project not in correct status")]
+    LiquidationNotAllowed,
+
+    #[msg("Liquidation already in progress - reentrancy not allowed")]
+    LiquidationInProgress,
+
+    #[msg("No old tokens remaining to liquidate")]
+    NoOldTokensRemaining,
+
+    #[msg("Invalid swap backend specified")]
+    InvalidSwapBackend,
+
+    #[msg("Liquidation already completed")]
+    LiquidationAlreadyCompleted,
+
+    #[msg("Invalid remaining accounts for liquidation")]
+    InvalidLiquidationAccounts,
+
+    #[msg("Liquidation amount exceeds available balance")]
+    LiquidationAmountExceedsBalance,
+
+    #[msg("Slippage protection triggered during liquidation")]
+    LiquidationSlippageExceeded,
+
+    #[msg("Invalid liquidation account configuration")]
+    InvalidLiquidationAccountConfig,
+
+    #[msg("Program not allowed for routing operations")]
+    ProgramNotAllowedForRoutes,
 }
