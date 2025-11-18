@@ -291,6 +291,9 @@ impl Project {
     /// Check if migration is currently active
     pub fn is_migration_active(&self) -> bool {
         let now = Clock::get().unwrap().unix_timestamp;
+        // NOTE: `now` reflects the Solana cluster clock, which can drift by roughly ±25 seconds
+        // from wall-clock time. Operators should consider that window when interpreting
+        // start/end comparisons for migration activity.
         let current_end_time = self.calculate_current_end_time();
 
         self.status == ProjectStatus::Active

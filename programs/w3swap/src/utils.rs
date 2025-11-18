@@ -266,7 +266,11 @@ pub fn calculate_protection_sol(total_new_tokens: u64, protection_percentage: u8
     Ok(protection_amount as u64)
 }
 
-/// Gets current timestamp
+/// Gets current timestamp from the Solana cluster clock.
+///
+/// The cluster enforces a ≈±25s drift tolerance between `Clock::unix_timestamp` and real time,
+/// so callers should treat any time-based checks that rely on this helper as having that window
+/// of leniency rather than expecting wall-clock precision.
 pub fn current_timestamp() -> i64 {
     Clock::get().unwrap().unix_timestamp
 }
