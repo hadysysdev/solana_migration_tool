@@ -319,14 +319,14 @@ describe("Liquidation Tests", () => {
     expect(project.status.ended).to.be.true;
   });
 
-  it("Fails liquidation when project not in correct status", async () => {
+  it("Fails liquidation when backend not allowlisted", async () => {
     try {
       await program.methods
         .swapOldTokenBatch(
           { meteora: {} }, // SwapBackend::Meteora
           new anchor.BN(10_000_000), // 10 tokens
           new anchor.BN(1_000_000), // min 1 WSOL
-          Buffer.from("") // Mock instruction data
+          Buffer.from("") // No-op instruction data for validation
         )
         .accounts({
           platformConfig,
@@ -336,12 +336,6 @@ describe("Liquidation Tests", () => {
           wsolMint,
           oldTokenVault,
           wsolVault,
-          adminWsolAccount: await createAccount(
-            provider.connection,
-            superAdmin.payer,
-            wsolMint,
-            projectAdmin.publicKey
-          ),
           oldTokenProgram: TOKEN_PROGRAM_ID,
           wsolTokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
@@ -351,36 +345,80 @@ describe("Liquidation Tests", () => {
           { pubkey: METEORA_DLMM_PROGRAM_ID, isSigner: false, isWritable: false },
         ])
         .rpc();
-      
-      expect.fail("Should have failed with LiquidationNotAllowed");
+
+      expect.fail("Should have failed because Meteora backend is not allowlisted");
     } catch (error) {
-      expect(error.error.errorMessage).to.include("Liquidation not allowed");
+      expect(error.error.errorMessage).to.include("Program not allowed for routing operations");
+    }
+  });
+
+  it("Allowlists swap backends for liquidation", async () => {
+    await program.methods
+      .updatePlatformConfig(
+        [METEORA_DLMM_PROGRAM_ID, JUPITER_PROGRAM_ID],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      )
+      .accounts({
+        platformConfig,
+        superAdmin: superAdmin.publicKey,
+      })
+      .rpc();
+
+    const config = await program.account.platformConfig.fetch(platformConfig);
+    const allowed = config.allowedSwapPrograms.map((pk: PublicKey) => pk.toBase58());
+    expect(allowed).to.include(METEORA_DLMM_PROGRAM_ID.toBase58());
+    expect(allowed).to.include(JUPITER_PROGRAM_ID.toBase58());
+  });
+
+  it("Fails liquidation when mint does not match vault", async () => {
+    try {
+      await program.methods
+        .swapOldTokenBatch(
+          { meteora: {} },
+          new anchor.BN(10_000_000),
+          new anchor.BN(1_000_000),
+          Buffer.from("")
+        )
+        .accounts({
+          platformConfig,
+          project: projectPDA,
+          projectAdmin: projectAdmin.publicKey,
+          oldTokenMint: wsolMint,
+          wsolMint,
+          oldTokenVault,
+          wsolVault,
+          oldTokenProgram: TOKEN_PROGRAM_ID,
+          wsolTokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([projectAdmin])
+        .remainingAccounts([
+          { pubkey: METEORA_DLMM_PROGRAM_ID, isSigner: false, isWritable: false },
+        ])
+        .rpc();
+
+      expect.fail("Should have failed due to token mint constraint");
+    } catch (error) {
+      expect(error.error.errorCode.code).to.equal("ConstraintTokenMint");
     }
   });
 
   it("Successfully starts liquidation with Meteora backend", async () => {
-    // First, let's manually set project status to Migrated for testing
-    // In a real scenario, this would be handled by the end_project instruction transitioning to Migrated
-    
-    // Create admin WSOL account
-    const adminWsolAccount = await createAccount(
-      provider.connection,
-      superAdmin.payer,
-      wsolMint,
-      projectAdmin.publicKey
-    );
-
     // Mock Meteora swap instruction data (simplified for testing)
-    const mockSwapData = Buffer.from([
-      0, 1, 2, 3, 4, 5 // Mock instruction bytes
-    ]);
+    const mockSwapData = Buffer.from([0, 1, 2, 3, 4, 5]);
 
     try {
       await program.methods
         .swapOldTokenBatch(
-          { meteora: {} }, // SwapBackend::Meteora
-          new anchor.BN(10_000_000), // 10 tokens
-          new anchor.BN(1_000_000), // min 1 WSOL
+          { meteora: {} },
+          new anchor.BN(10_000_000),
+          new anchor.BN(1_000_000),
           mockSwapData
         )
         .accounts({
@@ -391,7 +429,6 @@ describe("Liquidation Tests", () => {
           wsolMint,
           oldTokenVault,
           wsolVault,
-          adminWsolAccount,
           oldTokenProgram: TOKEN_PROGRAM_ID,
           wsolTokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
@@ -399,33 +436,24 @@ describe("Liquidation Tests", () => {
         .signers([projectAdmin])
         .remainingAccounts([
           { pubkey: METEORA_DLMM_PROGRAM_ID, isSigner: false, isWritable: false },
-          // Additional mock accounts would go here for a real Meteora swap
           { pubkey: oldTokenVault, isSigner: false, isWritable: true },
           { pubkey: wsolVault, isSigner: false, isWritable: true },
         ])
         .rpc();
-      
+
       expect.fail("Should fail due to mock instruction data");
     } catch (error) {
-      // Expected to fail due to mock instruction data, but should pass initial validation
       expect(error.error.errorMessage).to.include("CPI call failed");
     }
   });
 
   it("Fails with invalid backend program ID", async () => {
-    const adminWsolAccount = await createAccount(
-      provider.connection,
-      superAdmin.payer,
-      wsolMint,
-      projectAdmin.publicKey
-    );
-
     try {
       await program.methods
         .swapOldTokenBatch(
-          { jupiter: {} }, // SwapBackend::Jupiter
-          new anchor.BN(10_000_000), // 10 tokens
-          new anchor.BN(1_000_000), // min 1 WSOL
+          { jupiter: {} },
+          new anchor.BN(10_000_000),
+          new anchor.BN(1_000_000),
           Buffer.from("")
         )
         .accounts({
@@ -436,17 +464,16 @@ describe("Liquidation Tests", () => {
           wsolMint,
           oldTokenVault,
           wsolVault,
-          adminWsolAccount,
           oldTokenProgram: TOKEN_PROGRAM_ID,
           wsolTokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
         .signers([projectAdmin])
         .remainingAccounts([
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // Invalid program
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         ])
         .rpc();
-      
+
       expect.fail("Should have failed with InvalidSwapBackend");
     } catch (error) {
       expect(error.error.errorMessage).to.include("Invalid swap backend");
@@ -454,19 +481,12 @@ describe("Liquidation Tests", () => {
   });
 
   it("Fails with zero amount", async () => {
-    const adminWsolAccount = await createAccount(
-      provider.connection,
-      superAdmin.payer,
-      wsolMint,
-      projectAdmin.publicKey
-    );
-
     try {
       await program.methods
         .swapOldTokenBatch(
-          { meteora: {} }, // SwapBackend::Meteora
-          new anchor.BN(0), // Zero amount
-          new anchor.BN(1_000_000), // min 1 WSOL
+          { meteora: {} },
+          new anchor.BN(0),
+          new anchor.BN(1_000_000),
           Buffer.from("")
         )
         .accounts({
@@ -477,7 +497,6 @@ describe("Liquidation Tests", () => {
           wsolMint,
           oldTokenVault,
           wsolVault,
-          adminWsolAccount,
           oldTokenProgram: TOKEN_PROGRAM_ID,
           wsolTokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
@@ -487,7 +506,7 @@ describe("Liquidation Tests", () => {
           { pubkey: METEORA_DLMM_PROGRAM_ID, isSigner: false, isWritable: false },
         ])
         .rpc();
-      
+
       expect.fail("Should have failed with AmountIsZero");
     } catch (error) {
       expect(error.error.errorMessage).to.include("Amount is zero");

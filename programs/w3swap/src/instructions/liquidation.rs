@@ -7,6 +7,12 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 #[instruction(backend: SwapBackend)]
 pub struct SwapOldTokenBatch<'info> {
     #[account(
+        seeds = [b"platform_config"],
+        bump = platform_config.bump
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
+
+    #[account(
         mut,
         seeds = [b"project", project_admin.key().as_ref(), project.project_id.to_le_bytes().as_ref()],
         bump = project.bump,
@@ -18,7 +24,10 @@ pub struct SwapOldTokenBatch<'info> {
 
     #[account(
         mut,
-        address = project.old_token_vault
+        address = project.old_token_vault,
+        token::mint = old_token_mint,
+        token::authority = project,
+        token::token_program = old_token_program
     )]
     pub old_token_vault: InterfaceAccount<'info, TokenAccount>,
 
@@ -27,13 +36,6 @@ pub struct SwapOldTokenBatch<'info> {
         address = project.wsol_vault
     )]
     pub wsol_vault: InterfaceAccount<'info, TokenAccount>,
-
-    #[account(
-        mut,
-        token::mint = wsol_mint,
-        token::authority = project_admin
-    )]
-    pub admin_wsol_account: InterfaceAccount<'info, TokenAccount>,
 
     pub old_token_mint: InterfaceAccount<'info, Mint>,
     pub wsol_mint: InterfaceAccount<'info, Mint>,
@@ -57,6 +59,7 @@ pub fn swap_old_token_batch(
 ) -> Result<()> {
     validate_amount_not_zero(amount_in)?;
 
+    let platform_config = &ctx.accounts.platform_config;
     let project = &mut ctx.accounts.project;
     let old_token_vault = &ctx.accounts.old_token_vault;
     let wsol_vault = &ctx.accounts.wsol_vault;
@@ -86,127 +89,82 @@ pub fn swap_old_token_batch(
         _ => None,
     };
 
+    // Snapshot balances so post-swap deltas reflect the exact amounts that moved,
+    // which safely captures fee-on-transfer behaviour without trusting the input amount.
     let old_token_balance_before = old_token_vault.amount;
     let wsol_balance_before = wsol_vault.amount;
 
+    let remaining_accounts = &ctx.remaining_accounts;
+    if remaining_accounts.is_empty() {
+        return Err(W3SwapError::InvalidLiquidationAccounts.into());
+    }
+
+    let backend_program = match backend {
+        SwapBackend::Jupiter => {
+            const JUPITER_PROGRAM_ID: Pubkey =
+                pubkey!("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
+            JUPITER_PROGRAM_ID
+        }
+        SwapBackend::Meteora => {
+            const METEORA_DLMM_PROGRAM_ID: Pubkey =
+                pubkey!("Eo7WjKq67rjJQSZxS6z3LStQTw2d3DpyzJMzvJ4w5eK");
+            METEORA_DLMM_PROGRAM_ID
+        }
+    };
+
+    if remaining_accounts[0].key() != backend_program {
+        return Err(W3SwapError::InvalidSwapBackend.into());
+    }
+
+    ensure_swap_program_allowed(platform_config, &backend_program)?;
+
+    let metas: Vec<anchor_lang::solana_program::instruction::AccountMeta> = remaining_accounts
+        .iter()
+        .skip(1)
+        .map(|acc| {
+            if acc.is_writable {
+                anchor_lang::solana_program::instruction::AccountMeta::new(*acc.key, acc.is_signer)
+            } else {
+                anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                    *acc.key,
+                    acc.is_signer,
+                )
+            }
+        })
+        .collect();
+
+    let ix = anchor_lang::solana_program::instruction::Instruction {
+        program_id: backend_program,
+        accounts: metas,
+        data: ix_data,
+    };
+
+    let seeds = project_seeds(&project.project_admin, project.project_id);
+    let mut seed_refs: Vec<&[u8]> = seeds.iter().map(|s| s.as_slice()).collect();
+    let bump_slice = [project.bump];
+    seed_refs.push(&bump_slice);
+    let signer = &[seed_refs.as_slice()];
+
     project.liquidation_in_progress = true;
 
-    let swap_execution = (|| -> Result<()> {
-        match backend {
-            SwapBackend::Jupiter => {
-                if ctx.remaining_accounts.is_empty() {
-                    return Err(W3SwapError::InvalidLiquidationAccounts.into());
-                }
-
-                const JUPITER_PROGRAM_ID: Pubkey =
-                    pubkey!("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
-                let jupiter_program = ctx.remaining_accounts[0].key();
-                if jupiter_program != JUPITER_PROGRAM_ID {
-                    return Err(W3SwapError::InvalidSwapBackend.into());
-                }
-
-                let metas: Vec<anchor_lang::solana_program::instruction::AccountMeta> = ctx
-                    .remaining_accounts
-                    .iter()
-                    .skip(1)
-                    .map(|acc| {
-                        if acc.is_writable {
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                *acc.key,
-                                acc.is_signer,
-                            )
-                        } else {
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                *acc.key,
-                                acc.is_signer,
-                            )
-                        }
-                    })
-                    .collect();
-
-                let ix = anchor_lang::solana_program::instruction::Instruction {
-                    program_id: jupiter_program,
-                    accounts: metas,
-                    data: ix_data,
-                };
-
-                let seeds = project_seeds(&project.project_admin, project.project_id);
-                let mut seed_refs: Vec<&[u8]> = seeds.iter().map(|s| s.as_slice()).collect();
-                let bump_slice = [project.bump];
-                seed_refs.push(&bump_slice);
-                let signer = &[seed_refs.as_slice()];
-
-                anchor_lang::solana_program::program::invoke_signed(
-                    &ix,
-                    &ctx.remaining_accounts,
-                    signer,
-                )
-                .map_err(|_| W3SwapError::CpiCallFailed)?;
-                Ok(())
-            }
-            SwapBackend::Meteora => {
-                if ctx.remaining_accounts.is_empty() {
-                    return Err(W3SwapError::InvalidLiquidationAccounts.into());
-                }
-
-                const METEORA_DLMM_PROGRAM_ID: Pubkey =
-                    pubkey!("Eo7WjKq67rjJQSZxS6z3LStQTw2d3DpyzJMzvJ4w5eK");
-                let meteora_program = ctx.remaining_accounts[0].key();
-                if meteora_program != METEORA_DLMM_PROGRAM_ID {
-                    return Err(W3SwapError::InvalidSwapBackend.into());
-                }
-
-                let metas: Vec<anchor_lang::solana_program::instruction::AccountMeta> = ctx
-                    .remaining_accounts
-                    .iter()
-                    .skip(1)
-                    .map(|acc| {
-                        if acc.is_writable {
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                *acc.key,
-                                acc.is_signer,
-                            )
-                        } else {
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                *acc.key,
-                                acc.is_signer,
-                            )
-                        }
-                    })
-                    .collect();
-
-                let ix = anchor_lang::solana_program::instruction::Instruction {
-                    program_id: meteora_program,
-                    accounts: metas,
-                    data: ix_data,
-                };
-
-                let seeds = project_seeds(&project.project_admin, project.project_id);
-                let mut seed_refs: Vec<&[u8]> = seeds.iter().map(|s| s.as_slice()).collect();
-                let bump_slice = [project.bump];
-                seed_refs.push(&bump_slice);
-                let signer = &[seed_refs.as_slice()];
-
-                anchor_lang::solana_program::program::invoke_signed(
-                    &ix,
-                    &ctx.remaining_accounts,
-                    signer,
-                )
-                .map_err(|_| W3SwapError::CpiCallFailed)?;
-                Ok(())
-            }
-        }
-    })();
+    let swap_result = anchor_lang::solana_program::program::invoke_signed(
+        &ix,
+        remaining_accounts,
+        signer,
+    )
+    .map_err(|_| W3SwapError::CpiCallFailed);
 
     project.liquidation_in_progress = false;
 
-    swap_execution?;
+    swap_result?;
 
     // Post-swap balance verification
     let old_token_balance_after = old_token_vault.amount;
     let wsol_balance_after = wsol_vault.amount;
 
-    // Calculate actual amounts swapped (account for fees)
+    // Calculate actual amounts swapped using the observed balance deltas. This captures
+    // fee-on-transfer tokens because it relies on what actually moved rather than the
+    // requested input amount.
     let old_tokens_swapped = old_token_balance_before
         .checked_sub(old_token_balance_after)
         .ok_or(W3SwapError::ArithmeticOverflow)?;

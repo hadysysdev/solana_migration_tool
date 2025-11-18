@@ -1,6 +1,7 @@
 use crate::errors::W3SwapError;
 use crate::state::{
-    MIGRATION_DURATION_30_DAYS, MIGRATION_DURATION_60_DAYS, MIGRATION_DURATION_90_DAYS,
+    PlatformConfig, MIGRATION_DURATION_30_DAYS, MIGRATION_DURATION_60_DAYS,
+    MIGRATION_DURATION_90_DAYS,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
@@ -283,6 +284,17 @@ pub fn validate_migration_duration(duration_seconds: i64) -> Result<()> {
 /// Converts days to seconds for migration duration
 pub fn days_to_seconds(days: u64) -> i64 {
     (days * 24 * 60 * 60) as i64
+}
+
+/// Ensures the provided program is allowlisted for swaps
+pub fn ensure_swap_program_allowed(
+    platform_config: &PlatformConfig,
+    program_id: &Pubkey,
+) -> Result<()> {
+    if !platform_config.allowed_swap_programs.contains(program_id) {
+        return Err(W3SwapError::ProgramNotAllowedForRoutes.into());
+    }
+    Ok(())
 }
 
 /// Validates swap backend (Jupiter or Meteora)
