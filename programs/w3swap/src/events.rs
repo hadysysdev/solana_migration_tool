@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 use crate::state::ProjectStatus;
+use anchor_lang::prelude::*;
 
 /// Platform initialized event
 #[event]

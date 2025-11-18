@@ -1,20 +1,19 @@
 //! CPI Adapters Module
-//! 
+//!
 //! This module provides safe CPI integration points for external DEX protocols
 //! used in token liquidation and migration operations.
-//! 
+//!
 //! The adapters include:
 //! - Meteora: Direct CPI integration for DLMM/AMM swaps
 //! - Jupiter: Off-chain route construction with on-chain execution
 
-pub mod meteora;
 pub mod jupiter;
+pub mod meteora;
 
 // Re-export commonly used types and functions
 pub use meteora::{
-    AmmSwapAccounts, AmmSwapBuilder, MeteoraAdapter, MeteoraInstruction, SwapParams,
-    DlmmSwapAccounts, DlmmSwapBuilder,
-    METEORA_AMM_PROGRAM_ID, METEORA_AMM_PROGRAM_ID_DEVNET,
+    AmmSwapAccounts, AmmSwapBuilder, DlmmSwapAccounts, DlmmSwapBuilder, MeteoraAdapter,
+    MeteoraInstruction, SwapParams, METEORA_AMM_PROGRAM_ID, METEORA_AMM_PROGRAM_ID_DEVNET,
     METEORA_DLMM_PROGRAM_ID, METEORA_DLMM_PROGRAM_ID_DEVNET,
 };
 
@@ -29,10 +28,7 @@ pub mod common {
     use anchor_lang::solana_program::instruction::AccountMeta;
 
     /// Validate program ID against allowed list
-    pub fn validate_program_id(
-        program_id: Pubkey,
-        allowed_programs: &[Pubkey],
-    ) -> Result<()> {
+    pub fn validate_program_id(program_id: Pubkey, allowed_programs: &[Pubkey]) -> Result<()> {
         if !allowed_programs.contains(&program_id) {
             return Err(crate::errors::W3SwapError::ProgramNotAllowedForRoutes.into());
         }

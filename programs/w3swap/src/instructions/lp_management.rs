@@ -1,13 +1,10 @@
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{instruction::Instruction, instruction::AccountMeta, program::invoke_signed};
+use crate::{errors::W3SwapError, events::*, state::*, utils::*};
 use anchor_lang::prelude::AccountInfo;
-use anchor_spl::token_interface::{TokenInterface, Mint, TokenAccount};
-use crate::{
-    state::*,
-    errors::W3SwapError,
-    events::*,
-    utils::*,
+use anchor_lang::prelude::*;
+use anchor_lang::solana_program::{
+    instruction::AccountMeta, instruction::Instruction, program::invoke_signed,
 };
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 /// Mark LP as created
 #[derive(Accounts)]
@@ -21,7 +18,7 @@ pub struct MarkLpCreated<'info> {
         constraint = !project.lp_created @ W3SwapError::LpAlreadyCreated
     )]
     pub project: Account<'info, Project>,
-    
+
     pub project_admin: Signer<'info>,
 }
 
@@ -154,7 +151,10 @@ pub fn execute_meteora_swap<'info>(
     validate_amount_not_zero(amount_in)?;
 
     // Allowlist check
-    ensure_allowed(&ctx.accounts.platform_config, &ctx.accounts.route_program.key())?;
+    ensure_allowed(
+        &ctx.accounts.platform_config,
+        &ctx.accounts.route_program.key(),
+    )?;
 
     // Initialize WSOL vault address on first use if unset
     if ctx.accounts.project.wsol_vault == Pubkey::default() {
@@ -197,7 +197,9 @@ pub fn execute_meteora_swap<'info>(
 
     // Post balance and min-out enforcement
     let post = ctx.accounts.wsol_vault.amount;
-    let out = post.checked_sub(pre).ok_or(W3SwapError::ArithmeticOverflow)?;
+    let out = post
+        .checked_sub(pre)
+        .ok_or(W3SwapError::ArithmeticOverflow)?;
     if out < min_out_wsol {
         return Err(W3SwapError::MinimumOutputNotMet.into());
     }
@@ -223,7 +225,10 @@ pub fn execute_jupiter_swap<'info>(
     ix_data: Vec<u8>,
 ) -> Result<()> {
     validate_amount_not_zero(amount_in)?;
-    ensure_allowed(&ctx.accounts.platform_config, &ctx.accounts.route_program.key())?;
+    ensure_allowed(
+        &ctx.accounts.platform_config,
+        &ctx.accounts.route_program.key(),
+    )?;
 
     if ctx.accounts.project.wsol_vault == Pubkey::default() {
         ctx.accounts.project.wsol_vault = ctx.accounts.wsol_vault.key();
@@ -259,7 +264,9 @@ pub fn execute_jupiter_swap<'info>(
     invoke_signed(&ix, &infos, signer).map_err(|_| error!(W3SwapError::CpiCallFailed))?;
 
     let post = ctx.accounts.wsol_vault.amount;
-    let out = post.checked_sub(pre).ok_or(W3SwapError::ArithmeticOverflow)?;
+    let out = post
+        .checked_sub(pre)
+        .ok_or(W3SwapError::ArithmeticOverflow)?;
     if out < min_out_wsol {
         return Err(W3SwapError::MinimumOutputNotMet.into());
     }
@@ -377,7 +384,7 @@ pub struct DepositLp<'info> {
         constraint = project.lp_created @ W3SwapError::LpNotCreated
     )]
     pub project: Account<'info, Project>,
-    
+
     #[account(
         init_if_needed,
         payer = project_admin,
@@ -388,17 +395,17 @@ pub struct DepositLp<'info> {
         bump
     )]
     pub lp_escrow_vault: InterfaceAccount<'info, TokenAccount>,
-    
+
     #[account(
         mut,
         token::mint = lp_mint,
         token::authority = project_admin
     )]
     pub project_admin_lp_account: InterfaceAccount<'info, TokenAccount>,
-    
+
     pub lp_mint: InterfaceAccount<'info, Mint>,
     pub token_program: Interface<'info, TokenInterface>,
-    
+
     #[account(mut)]
     pub project_admin: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -415,59 +422,54 @@ pub struct WithdrawLp<'info> {
         constraint = project.can_withdraw_lp() @ W3SwapError::LpStillLocked
     )]
     pub project: Account<'info, Project>,
-    
+
     #[account(
         mut,
         address = project.lp_escrow_vault
     )]
     pub lp_escrow_vault: InterfaceAccount<'info, TokenAccount>,
-    
+
     #[account(
         mut,
         token::mint = lp_mint,
         token::authority = project_admin
     )]
     pub project_admin_lp_account: InterfaceAccount<'info, TokenAccount>,
-    
+
     pub lp_mint: InterfaceAccount<'info, Mint>,
     pub token_program: Interface<'info, TokenInterface>,
     pub project_admin: Signer<'info>,
 }
 
 /// Mark LP as created
-pub fn mark_lp_created(
-    ctx: Context<MarkLpCreated>,
-) -> Result<()> {
+pub fn mark_lp_created(ctx: Context<MarkLpCreated>) -> Result<()> {
     let project = &mut ctx.accounts.project;
     let now = current_timestamp();
-    
+
     project.lp_created = true;
     project.lp_lock_end = now + MIN_LP_LOCK_DURATION;
-    
+
     emit!(LpCreated {
         project_id: project.project_id,
         project_admin: project.project_admin,
         project_pda: project.key(),
         timestamp: now,
     });
-    
+
     Ok(())
 }
 
 /// Deposit LP tokens to escrow
-pub fn deposit_lp(
-    ctx: Context<DepositLp>,
-    amount: u64,
-) -> Result<()> {
+pub fn deposit_lp(ctx: Context<DepositLp>, amount: u64) -> Result<()> {
     validate_amount_not_zero(amount)?;
-    
+
     let project = &mut ctx.accounts.project;
-    
+
     // Update project LP escrow vault if not set
     if project.lp_escrow_vault == Pubkey::default() {
         project.lp_escrow_vault = ctx.accounts.lp_escrow_vault.key();
     }
-    
+
     // Transfer LP tokens to escrow
     transfer_tokens_checked(
         &ctx.accounts.project_admin_lp_account,
@@ -479,11 +481,12 @@ pub fn deposit_lp(
         ctx.accounts.lp_mint.decimals,
         None,
     )?;
-    
-    project.lp_tokens_deposited = project.lp_tokens_deposited
+
+    project.lp_tokens_deposited = project
+        .lp_tokens_deposited
         .checked_add(amount)
         .ok_or(W3SwapError::ArithmeticOverflow)?;
-    
+
     emit!(LpDeposited {
         project_id: project.project_id,
         project_admin: project.project_admin,
@@ -493,31 +496,28 @@ pub fn deposit_lp(
         lock_end_timestamp: project.lp_lock_end,
         timestamp: current_timestamp(),
     });
-    
+
     Ok(())
 }
 
 /// Withdraw LP tokens from escrow
-pub fn withdraw_lp(
-    ctx: Context<WithdrawLp>,
-    amount: u64,
-) -> Result<()> {
+pub fn withdraw_lp(ctx: Context<WithdrawLp>, amount: u64) -> Result<()> {
     validate_amount_not_zero(amount)?;
-    
+
     let project = &mut ctx.accounts.project;
-    
+
     // Check sufficient balance in escrow
     if ctx.accounts.lp_escrow_vault.amount < amount {
         return Err(W3SwapError::InsufficientTokensInVault.into());
     }
-    
+
     // Transfer LP tokens from escrow to admin
     let project_seeds = project_seeds(&project.project_admin, project.project_id);
     let mut project_seed_refs: Vec<&[u8]> = project_seeds.iter().map(|s| s.as_slice()).collect();
     let bump_slice = [project.bump];
     project_seed_refs.push(&bump_slice);
     let project_signer_seeds = &[project_seed_refs.as_slice()];
-    
+
     transfer_tokens_checked(
         &ctx.accounts.lp_escrow_vault,
         &ctx.accounts.project_admin_lp_account,
@@ -528,11 +528,12 @@ pub fn withdraw_lp(
         ctx.accounts.lp_mint.decimals,
         Some(project_signer_seeds),
     )?;
-    
-    project.lp_tokens_deposited = project.lp_tokens_deposited
+
+    project.lp_tokens_deposited = project
+        .lp_tokens_deposited
         .checked_sub(amount)
         .ok_or(W3SwapError::ArithmeticOverflow)?;
-    
+
     emit!(LpWithdrawn {
         project_id: project.project_id,
         project_admin: project.project_admin,
@@ -541,7 +542,7 @@ pub fn withdraw_lp(
         remaining_deposited: project.lp_tokens_deposited,
         timestamp: current_timestamp(),
     });
-    
+
     Ok(())
 }
 
