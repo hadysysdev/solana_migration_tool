@@ -151,12 +151,19 @@ pub fn swap_old_token_batch(
         &ix,
         remaining_accounts,
         signer,
-    )
-    .map_err(|_| W3SwapError::CpiCallFailed);
+    );
 
     project.liquidation_in_progress = false;
 
-    swap_result?;
+    if let Err(err) = swap_result {
+        msg!(
+            "Liquidation CPI invoke failed for backend {:?} (program {}): {:?}",
+            backend_for_event,
+            backend_program,
+            err
+        );
+        return Err(W3SwapError::CpiCallFailed.into());
+    }
 
     // Post-swap balance verification
     let old_token_balance_after = old_token_vault.amount;

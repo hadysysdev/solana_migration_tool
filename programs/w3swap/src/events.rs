@@ -71,7 +71,11 @@ pub struct ProjectStatusChanged {
     pub timestamp: i64,
 }
 
-/// Migration performed event
+/// Migration performed event.
+///
+/// Amount fields are derived from on-chain state and therefore publicly disclose migration flow
+/// totals. Operators concerned about business-sensitive metrics should account for that
+/// transparency when configuring migrations.
 #[event]
 pub struct MigrationPerformed {
     pub project_id: u64,
@@ -84,7 +88,10 @@ pub struct MigrationPerformed {
     pub timestamp: i64,
 }
 
-/// Settlement completed event (LP created and lockup starts)
+/// Settlement completed event (LP created and lockup starts).
+///
+/// Settlement amounts originate from on-chain balances and are globally visible, which may reveal
+/// revenue or treasury performance metrics to observers.
 #[event]
 pub struct SettlementCompleted {
     pub project_id: u64,
@@ -97,7 +104,10 @@ pub struct SettlementCompleted {
     pub timestamp: i64,
 }
 
-/// Swap executed via adapter (Jupiter/Meteora)
+/// Swap executed via adapter (Jupiter/Meteora).
+///
+/// Route and amount fields expose precise trading flow on-chain; treat them as public diagnostics
+/// rather than private accounting data.
 #[event]
 pub struct SwapExecuted {
     pub project_id: u64,
@@ -156,7 +166,10 @@ pub struct LpWithdrawn {
 
 // Refund and sweep events removed
 
-/// Old token batch swap executed during liquidation
+/// Old token batch swap executed during liquidation.
+///
+/// Amount fields log observed vault deltas on-chain, so liquidation throughput and inventory levels
+/// are inherently public when this event is emitted.
 #[event]
 pub struct OldTokenBatchSwapped {
     pub project_id: u64,
@@ -171,7 +184,10 @@ pub struct OldTokenBatchSwapped {
     pub timestamp: i64,
 }
 
-/// Old token liquidation completed
+/// Old token liquidation completed.
+///
+/// The totals emitted here are calculated from on-chain balances, revealing liquidation outcomes
+/// to the broader network; plan accordingly if this data is considered sensitive.
 #[event]
 pub struct OldTokenLiquidationComplete {
     pub project_id: u64,
