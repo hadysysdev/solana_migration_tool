@@ -162,7 +162,9 @@ pub struct OldTokenBatchSwapped {
     pub project_id: u64,
     pub project_pda: Pubkey,
     pub backend: String, // "Jupiter" or "Meteora"
+    /// Actual old-token balance delta observed in the vault (handles fee-on-transfer tokens)
     pub amount_in: u64,
+    /// Actual WSOL balance delta observed in the vault (post-fee amount received)
     pub amount_out: u64,
     pub remaining_balance: u64,
     pub slot: u64,
