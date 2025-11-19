@@ -1,6 +1,5 @@
 use crate::{errors::W3SwapError, events::*, state::*, utils::*};
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::instruction::Instruction;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 /// Migrate old tokens for new tokens
@@ -86,7 +85,7 @@ pub fn migrate(ctx: Context<Migrate>, amount: u64) -> Result<()> {
     let bump = ctx.bumps.user_migration;
 
     let is_new_account = ensure_user_migration_initialized(
-        &ctx.program_id,
+        ctx.program_id,
         &ctx.accounts.user_migration,
         &ctx.accounts.user.to_account_info(),
         &ctx.accounts.system_program,

@@ -69,6 +69,7 @@ pub struct AmmSwapBuilder<'info> {
     instruction: MeteoraInstruction,
 }
 
+#[allow(clippy::vec_init_then_push)]
 impl<'info> DlmmSwapBuilder<'info> {
     pub fn new(accounts: DlmmSwapAccounts<'info>, params: SwapParams) -> Self {
         Self {
@@ -117,6 +118,7 @@ impl<'info> DlmmSwapBuilder<'info> {
     }
 }
 
+#[allow(clippy::vec_init_then_push)]
 impl<'info> AmmSwapBuilder<'info> {
     pub fn new(accounts: AmmSwapAccounts<'info>, params: SwapParams) -> Self {
         Self {

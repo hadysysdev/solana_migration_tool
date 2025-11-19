@@ -192,7 +192,7 @@ pub fn execute_meteora_swap<'info>(
     };
     let mut infos: Vec<AccountInfo> = Vec::with_capacity(1 + ctx.remaining_accounts.len());
     infos.push(ctx.accounts.route_program.to_account_info());
-    infos.extend_from_slice(&ctx.remaining_accounts);
+    infos.extend_from_slice(ctx.remaining_accounts);
     invoke_signed(&ix, &infos, signer).map_err(|_| error!(W3SwapError::CpiCallFailed))?;
 
     // Post balance and min-out enforcement
@@ -260,7 +260,7 @@ pub fn execute_jupiter_swap<'info>(
     };
     let mut infos: Vec<AccountInfo> = Vec::with_capacity(1 + ctx.remaining_accounts.len());
     infos.push(ctx.accounts.route_program.to_account_info());
-    infos.extend_from_slice(&ctx.remaining_accounts);
+    infos.extend_from_slice(ctx.remaining_accounts);
     invoke_signed(&ix, &infos, signer).map_err(|_| error!(W3SwapError::CpiCallFailed))?;
 
     let post = ctx.accounts.wsol_vault.amount;
@@ -351,7 +351,7 @@ pub fn finalize_settlement<'info>(
     };
     let mut infos: Vec<AccountInfo> = Vec::with_capacity(1 + ctx.remaining_accounts.len());
     infos.push(ctx.accounts.route_program.to_account_info());
-    infos.extend_from_slice(&ctx.remaining_accounts);
+    infos.extend_from_slice(ctx.remaining_accounts);
     invoke_signed(&ix, &infos, signer).map_err(|_| error!(W3SwapError::CpiCallFailed))?;
 
     // Set lock and mark finalized

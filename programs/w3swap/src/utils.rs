@@ -140,6 +140,7 @@ pub fn validate_token_account_generic(
 }
 
 /// Transfers tokens using Anchor's token interface CPI
+#[allow(deprecated)]
 pub fn transfer_tokens<'info>(
     from: &InterfaceAccount<'info, TokenAccount>,
     to: &InterfaceAccount<'info, TokenAccount>,
@@ -167,6 +168,7 @@ pub fn transfer_tokens<'info>(
 }
 
 /// Transfers tokens with checked transfer for safety
+#[allow(clippy::too_many_arguments)]
 pub fn transfer_tokens_checked<'info>(
     from: &InterfaceAccount<'info, TokenAccount>,
     to: &InterfaceAccount<'info, TokenAccount>,

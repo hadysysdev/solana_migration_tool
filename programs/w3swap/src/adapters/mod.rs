@@ -66,7 +66,7 @@ pub mod common {
         bump: u8,
     ) -> Vec<Vec<u8>> {
         let seeds = crate::utils::project_seeds(&project_admin, project_id);
-        let mut seed_refs: Vec<Vec<u8>> = seeds.iter().map(|s| s.clone()).collect();
+        let mut seed_refs: Vec<Vec<u8>> = seeds.to_vec();
         seed_refs.push(vec![bump]);
         seed_refs
     }

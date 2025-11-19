@@ -254,7 +254,7 @@ impl Project {
         8 + // exchange_ratio_numerator
         8 + // exchange_ratio_denominator
         1 + // auto_pause_threshold_percent
-        0 + // protection removed
+        // protection removed - no bytes allocated
         4 + 32 + // project_name (String: 4 bytes length + 32 bytes max content)
         8 + // total_old_migrated
         8 + // total_new_distributed
