@@ -147,11 +147,8 @@ pub fn swap_old_token_batch(
 
     project.liquidation_in_progress = true;
 
-    let swap_result = anchor_lang::solana_program::program::invoke_signed(
-        &ix,
-        remaining_accounts,
-        signer,
-    );
+    let swap_result =
+        anchor_lang::solana_program::program::invoke_signed(&ix, remaining_accounts, signer);
 
     project.liquidation_in_progress = false;
 

@@ -158,6 +158,7 @@ pub fn manage_project_admin(
 }
 
 /// Update platform configuration
+#[allow(clippy::too_many_arguments)]
 pub fn update_platform_config(
     ctx: Context<UpdatePlatformConfig>,
     allowed_swap_programs: Option<Vec<Pubkey>>,
@@ -228,7 +229,7 @@ pub fn update_platform_config(
     }
 
     if let Some(max_days) = max_migration_days {
-        if max_days == 0 || max_days > 255 {
+        if max_days == 0 {
             return Err(W3SwapError::InvalidInstructionData.into());
         }
         platform_config.max_migration_days = max_days;
@@ -240,7 +241,7 @@ pub fn update_platform_config(
     }
 
     if let Some(lock_days) = min_lp_lock_days {
-        if lock_days == 0 || lock_days > 255 {
+        if lock_days == 0 {
             return Err(W3SwapError::InvalidInstructionData.into());
         }
         platform_config.min_lp_lock_days = lock_days;

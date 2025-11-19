@@ -52,6 +52,7 @@ pub struct JupiterRouteBuilder<'info> {
     instruction: JupiterInstruction,
 }
 
+#[allow(clippy::vec_init_then_push)]
 impl<'info> JupiterRouteBuilder<'info> {
     pub fn new(
         accounts: JupiterRouteAccounts<'info>,

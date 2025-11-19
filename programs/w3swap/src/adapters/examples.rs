@@ -6,7 +6,6 @@
 use crate::adapters::*;
 use crate::state::Project;
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::system_program;
 
 /// Example function showing how to integrate Meteora adapter
 /// with swap_old_token_batch instruction
@@ -229,7 +228,8 @@ pub fn get_meteora_remaining_accounts_structure() -> Vec<&'static str> {
 /// 6. Token program
 /// 7. System program
 /// 8. (Optional) Jupiter program state (for v6)
-/// 9..N Route-specific accounts (pools, vaults, authorities)
+///
+///    9..N Route-specific accounts (pools, vaults, authorities)
 pub fn get_jupiter_remaining_accounts_structure() -> Vec<&'static str> {
     vec![
         "jupiter_program",

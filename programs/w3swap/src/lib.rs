@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use anchor_lang::prelude::*;
 
 pub mod adapters;
@@ -49,6 +51,7 @@ pub mod w3swap {
     }
 
     /// Update platform configuration
+    #[allow(clippy::too_many_arguments)]
     pub fn update_platform_config(
         ctx: Context<UpdatePlatformConfig>,
         allowed_swap_programs: Option<Vec<Pubkey>>,
@@ -224,7 +227,7 @@ pub mod w3swap {
             accounts: metas,
             data: ix_data,
         };
-        anchor_lang::solana_program::program::invoke_signed(&ix, &ctx.remaining_accounts, signer)
+        anchor_lang::solana_program::program::invoke_signed(&ix, ctx.remaining_accounts, signer)
             .map_err(|_| error!(errors::W3SwapError::CpiCallFailed))?;
 
         let post = ctx.accounts.wsol_vault.amount;
@@ -302,7 +305,7 @@ pub mod w3swap {
             accounts: metas,
             data: ix_data,
         };
-        anchor_lang::solana_program::program::invoke_signed(&ix, &ctx.remaining_accounts, signer)
+        anchor_lang::solana_program::program::invoke_signed(&ix, ctx.remaining_accounts, signer)
             .map_err(|_| error!(errors::W3SwapError::CpiCallFailed))?;
 
         let post = ctx.accounts.wsol_vault.amount;
@@ -388,7 +391,7 @@ pub mod w3swap {
             accounts: metas,
             data: lp_add_ix_data,
         };
-        anchor_lang::solana_program::program::invoke_signed(&ix, &ctx.remaining_accounts, signer)
+        anchor_lang::solana_program::program::invoke_signed(&ix, ctx.remaining_accounts, signer)
             .map_err(|_| error!(errors::W3SwapError::CpiCallFailed))?;
 
         let now = utils::current_timestamp();
