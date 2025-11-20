@@ -84,7 +84,17 @@ pub mod w3swap {
         instructions::update_fee_destination_wallet(ctx, new_fee_destination)
     }
 
+    /// Pre-allocate the project PDA account with full space
+    /// Required before create_project_init to avoid 10KB reallocation limit
+    pub fn allocate_project_account(
+        ctx: Context<AllocateProjectAccount>,
+        project_id: u64,
+    ) -> Result<()> {
+        instructions::allocate_project_account(ctx, project_id)
+    }
+
     /// Create project (step 1): initialize account and fields
+    /// Note: Must call allocate_project_account first
     pub fn create_project_init(
         ctx: Context<CreateProjectInit>,
         params: CreateProjectParams,
