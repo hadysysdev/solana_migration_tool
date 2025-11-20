@@ -1,9 +1,38 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, system_program};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 // WSOL vault address will be set lazily during first swap via adapters
 use crate::{errors::W3SwapError, events::*, state::*, utils::*};
 
+/// Pre-allocate the project PDA account with full space
+/// This avoids the 10,240 byte reallocation limit for inner instructions
+#[derive(Accounts)]
+#[instruction(project_id: u64)]
+pub struct AllocateProjectAccount<'info> {
+    #[account(
+        seeds = [b"platform_config"],
+        bump = platform_config.bump
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
+
+    #[account(
+        mut,
+        constraint = platform_config.project_admins.contains(&project_admin.key()) @ W3SwapError::NotProjectAdmin
+    )]
+    pub project_admin: Signer<'info>,
+
+    /// CHECK: PDA to be allocated before initializing data
+    #[account(
+        mut,
+        seeds = [b"project", project_admin.key().as_ref(), project_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub project: UncheckedAccount<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
 /// Create a new migration project (step 1: init project only)
+/// Note: Project account must be pre-allocated via allocate_project_account instruction
 #[derive(Accounts)]
 #[instruction(params: CreateProjectParams)]
 pub struct CreateProjectInit<'info> {
@@ -14,11 +43,10 @@ pub struct CreateProjectInit<'info> {
     pub platform_config: Account<'info, PlatformConfig>,
 
     #[account(
-        init,
-        payer = project_admin,
-        space = Project::LEN,
+        mut,
         seeds = [b"project", project_admin.key().as_ref(), params.project_id.to_le_bytes().as_ref()],
-        bump
+        bump,
+        owner = crate::ID
     )]
     pub project: Account<'info, Project>,
 
@@ -321,6 +349,61 @@ pub struct FinalizeProjectTransfers<'info> {
     pub project_admin: Signer<'info>,
 
     pub system_program: Program<'info, System>,
+}
+
+/// Pre-allocate the project PDA account with full space
+/// This is required before calling create_project_init to avoid the
+/// 10,240 byte reallocation limit for inner instructions.
+/// The Project struct size exceeds 10KB (96,584 bytes) due to Vec fields,
+/// so we must allocate the full space upfront rather than attempting to
+/// reallocate during initialization.
+pub fn allocate_project_account(
+    ctx: Context<AllocateProjectAccount>,
+    project_id: u64,
+) -> Result<()> {
+    let project_info = ctx.accounts.project.to_account_info();
+
+    if project_info.lamports() > 0 || project_info.data_len() > 0 {
+        return Err(W3SwapError::ProjectAlreadyAllocated.into());
+    }
+    if project_info.owner != &System::id() {
+        return Err(W3SwapError::InvalidAccountOwner.into());
+    }
+
+    let account_size = Project::LEN as u64;
+    let rent = Rent::get()?;
+    let required_lamports = rent.minimum_balance(Project::LEN);
+
+    let project_id_bytes = project_id.to_le_bytes();
+    let project_admin_key = ctx.accounts.project_admin.key();
+    let bump = ctx.bumps.project;
+    let bump_bytes = [bump];
+    let signer_seeds: &[&[u8]] = &[
+        b"project",
+        project_admin_key.as_ref(),
+        &project_id_bytes,
+        &bump_bytes,
+    ];
+
+    system_program::create_account(
+        CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::CreateAccount {
+                from: ctx.accounts.project_admin.to_account_info(),
+                to: project_info.clone(),
+            },
+            &[signer_seeds],
+        ),
+        required_lamports,
+        account_size,
+        &crate::ID,
+    )?;
+
+    let mut data = project_info.try_borrow_mut_data()?;
+    let discriminator: [u8; 8] = [205, 168, 189, 202, 181, 247, 142, 19];
+    data[..8].copy_from_slice(&discriminator);
+
+    Ok(())
 }
 
 /// Create a new migration project (step 1)

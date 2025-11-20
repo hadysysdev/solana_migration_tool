@@ -214,4 +214,7 @@ pub enum W3SwapError {
 
     #[msg("User migration account does not match expected project or user")]
     UserMigrationAccountMismatch,
+
+    #[msg("Project account already allocated")]
+    ProjectAlreadyAllocated,
 }

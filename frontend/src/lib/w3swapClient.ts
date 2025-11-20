@@ -4,6 +4,22 @@ import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } fr
 import type { W3swap } from '../../../target/types/w3swap';
 import { getProgram, getProjectPDA } from './anchor';
 
+export async function allocateProjectAccount(provider: AnchorProvider, projectId: number) {
+  const program = getProgram(provider);
+  const [platformConfig] = PublicKey.findProgramAddressSync([Buffer.from('platform_config')], program.programId);
+  const [project] = getProjectPDA(provider.wallet.publicKey, projectId);
+
+  return program.methods
+    .allocateProjectAccount(new BN(projectId))
+    .accounts({
+      platformConfig,
+      projectAdmin: provider.wallet.publicKey,
+      project,
+      systemProgram: SystemProgram.programId,
+    } as any)
+    .rpc();
+}
+
 export type CreateProjectForm = {
   projectId?: number; // optional; default from timestamp
   name: string;
@@ -25,6 +41,9 @@ export async function createProjectInitFromForm(provider: AnchorProvider, form: 
   const [platformConfig] = PublicKey.findProgramAddressSync([Buffer.from('platform_config')], program.programId);
   const projectId = form.projectId ?? Math.floor(Date.now() / 1000);
   const [project] = getProjectPDA(provider.wallet.publicKey, projectId);
+
+  // Step 1: Allocate the project PDA account with full space to avoid 10KB reallocation limit
+  await allocateProjectAccount(provider, projectId);
 
   const oldTokenMint = new PublicKey(form.oldTokenMint);
   const newTokenMint = new PublicKey(form.newTokenMint);
@@ -59,6 +78,7 @@ export async function createProjectInitFromForm(provider: AnchorProvider, form: 
 
   const platform = await program.account.platformConfig.fetch(platformConfig);
 
+  // Step 2: Initialize the project data
   return program.methods
     .createProjectInit(params)
     .accounts({
