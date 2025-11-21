@@ -225,6 +225,30 @@ export class W3SwapClientV2 {
   }
 
   // ---------- Project lifecycle ----------
+  async allocateProjectAccount(projectId: BN): Promise<string> {
+    const [platformConfig] = this.getPlatformConfigPda();
+    const [project] = this.getProjectPda(this.provider.wallet.publicKey, projectId);
+    
+    const m = this.method("allocateProjectAccount", "allocate_project_account");
+    if (m) {
+      return m(projectId)
+        .accounts({
+          platformConfig,
+          projectAdmin: this.provider.wallet.publicKey,
+          project,
+          systemProgram: SystemProgram.programId,
+        } as any)
+        .rpc();
+    }
+    const ix = this.buildIx("allocate_project_account", {
+      platform_config: platformConfig,
+      project_admin: this.provider.wallet.publicKey,
+      project,
+      system_program: SystemProgram.programId,
+    } as any, [projectId]);
+    return this.sendIx(ix);
+  }
+
   async createProjectInit(args: {
     projectId: BN;
     projectName: string;

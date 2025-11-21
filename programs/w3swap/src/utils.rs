@@ -1,7 +1,10 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{TokenInterface, TokenAccount, Mint};
 use crate::errors::W3SwapError;
-use crate::state::{MIGRATION_DURATION_30_DAYS, MIGRATION_DURATION_60_DAYS, MIGRATION_DURATION_90_DAYS};
+use crate::state::{
+    PlatformConfig, MIGRATION_DURATION_30_DAYS, MIGRATION_DURATION_60_DAYS,
+    MIGRATION_DURATION_90_DAYS,
+};
+use anchor_lang::prelude::*;
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 /// Token program IDs
 pub const SPL_TOKEN_ID: Pubkey = anchor_spl::token::ID;
@@ -36,34 +39,22 @@ pub fn project_seeds(project_admin: &Pubkey, project_id: u64) -> Vec<Vec<u8>> {
 
 /// Creates a PDA seed array for old token vault
 pub fn old_token_vault_seeds(project: &Pubkey) -> Vec<Vec<u8>> {
-    vec![
-        b"old_token_vault".to_vec(),
-        project.to_bytes().to_vec(),
-    ]
+    vec![b"old_token_vault".to_vec(), project.to_bytes().to_vec()]
 }
 
 /// Creates a PDA seed array for new token vault
 pub fn new_token_vault_seeds(project: &Pubkey) -> Vec<Vec<u8>> {
-    vec![
-        b"new_token_vault".to_vec(),
-        project.to_bytes().to_vec(),
-    ]
+    vec![b"new_token_vault".to_vec(), project.to_bytes().to_vec()]
 }
 
 /// Creates a PDA seed array for protection vault
 pub fn protection_vault_seeds(project: &Pubkey) -> Vec<Vec<u8>> {
-    vec![
-        b"protection_vault".to_vec(),
-        project.to_bytes().to_vec(),
-    ]
+    vec![b"protection_vault".to_vec(), project.to_bytes().to_vec()]
 }
 
 /// Creates a PDA seed array for LP escrow vault
 pub fn lp_escrow_vault_seeds(project: &Pubkey) -> Vec<Vec<u8>> {
-    vec![
-        b"lp_escrow_vault".to_vec(),
-        project.to_bytes().to_vec(),
-    ]
+    vec![b"lp_escrow_vault".to_vec(), project.to_bytes().to_vec()]
 }
 
 /// Creates a PDA seed array for user migration
@@ -75,6 +66,62 @@ pub fn user_migration_seeds(project: &Pubkey, user: &Pubkey) -> Vec<Vec<u8>> {
     ]
 }
 
+/// Ensures the user migration PDA is initialized exactly once without using `init_if_needed`.
+/// Returns true when the account was created during this call and false if it was already initialized.
+///
+/// This helper prevents reinitialization attacks by refusing to recreate an account that already
+/// belongs to the program or contains data, while still allowing first-time creation.
+pub fn ensure_user_migration_initialized<'info>(
+    program_id: &Pubkey,
+    user_migration_info: &AccountInfo<'info>,
+    payer: &AccountInfo<'info>,
+    system_program: &Program<'info, System>,
+    seeds: &[&[u8]],
+    bump: u8,
+    space: usize,
+) -> Result<bool> {
+    if user_migration_info.owner == program_id {
+        require!(
+            !user_migration_info.data_is_empty(),
+            W3SwapError::UserMigrationAlreadyInitialized
+        );
+        return Ok(false);
+    }
+
+    require!(
+        user_migration_info.owner == &System::id(),
+        W3SwapError::InvalidAccountOwner
+    );
+    require!(
+        user_migration_info.lamports() == 0 && user_migration_info.data_is_empty(),
+        W3SwapError::UserMigrationAlreadyInitialized
+    );
+
+    let rent = Rent::get()?;
+    let lamports = rent.minimum_balance(space).max(1);
+
+    let mut signer_seeds: Vec<&[u8]> = seeds.to_vec();
+    let bump_bytes = [bump];
+    signer_seeds.push(&bump_bytes);
+    let signer_seeds_slice = &[signer_seeds.as_slice()];
+
+    anchor_lang::system_program::create_account(
+        CpiContext::new_with_signer(
+            system_program.to_account_info(),
+            anchor_lang::system_program::CreateAccount {
+                from: payer.clone(),
+                to: user_migration_info.clone(),
+            },
+            signer_seeds_slice,
+        ),
+        lamports,
+        space as u64,
+        program_id,
+    )?;
+
+    Ok(true)
+}
+
 /// Generic token account validation using token interface
 pub fn validate_token_account_generic(
     token_account: &InterfaceAccount<TokenAccount>,
@@ -84,15 +131,16 @@ pub fn validate_token_account_generic(
     if token_account.mint != *expected_mint {
         return Err(W3SwapError::TokenMintMismatch.into());
     }
-    
+
     if token_account.owner != *expected_owner {
         return Err(W3SwapError::InvalidAccountOwner.into());
     }
-    
+
     Ok(())
 }
 
 /// Transfers tokens using Anchor's token interface CPI
+#[allow(deprecated)]
 pub fn transfer_tokens<'info>(
     from: &InterfaceAccount<'info, TokenAccount>,
     to: &InterfaceAccount<'info, TokenAccount>,
@@ -102,15 +150,16 @@ pub fn transfer_tokens<'info>(
     authority_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()> {
     use anchor_spl::token_interface::{transfer, Transfer};
-    
+
     let cpi_accounts = Transfer {
         from: from.to_account_info(),
         to: to.to_account_info(),
         authority: authority.clone(),
     };
-    
+
     if let Some(seeds) = authority_seeds {
-        let cpi_ctx = CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, seeds);
+        let cpi_ctx =
+            CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, seeds);
         transfer(cpi_ctx, amount)
     } else {
         let cpi_ctx = CpiContext::new(token_program.to_account_info(), cpi_accounts);
@@ -119,6 +168,7 @@ pub fn transfer_tokens<'info>(
 }
 
 /// Transfers tokens with checked transfer for safety
+#[allow(clippy::too_many_arguments)]
 pub fn transfer_tokens_checked<'info>(
     from: &InterfaceAccount<'info, TokenAccount>,
     to: &InterfaceAccount<'info, TokenAccount>,
@@ -130,16 +180,17 @@ pub fn transfer_tokens_checked<'info>(
     authority_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()> {
     use anchor_spl::token_interface::{transfer_checked, TransferChecked};
-    
+
     let cpi_accounts = TransferChecked {
         from: from.to_account_info(),
         mint: mint.to_account_info(),
         to: to.to_account_info(),
         authority: authority.clone(),
     };
-    
+
     if let Some(seeds) = authority_seeds {
-        let cpi_ctx = CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, seeds);
+        let cpi_ctx =
+            CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, seeds);
         transfer_checked(cpi_ctx, amount, decimals)
     } else {
         let cpi_ctx = CpiContext::new(token_program.to_account_info(), cpi_accounts);
@@ -156,15 +207,16 @@ pub fn close_token_account<'info>(
     authority_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()> {
     use anchor_spl::token_interface::{close_account, CloseAccount};
-    
+
     let cpi_accounts = CloseAccount {
         account: account.to_account_info(),
         destination: destination.clone(),
         authority: authority.clone(),
     };
-    
+
     if let Some(seeds) = authority_seeds {
-        let cpi_ctx = CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, seeds);
+        let cpi_ctx =
+            CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, seeds);
         close_account(cpi_ctx)
     } else {
         let cpi_ctx = CpiContext::new(token_program.to_account_info(), cpi_accounts);
@@ -183,7 +235,7 @@ pub fn transfer_sol<'info>(
         from: from.clone(),
         to: to.clone(),
     };
-    
+
     let cpi_ctx = CpiContext::new(system_program.to_account_info(), cpi_accounts);
     anchor_lang::system_program::transfer(cpi_ctx, amount)?;
     Ok(())
@@ -212,11 +264,15 @@ pub fn calculate_protection_sol(total_new_tokens: u64, protection_percentage: u8
         .ok_or(W3SwapError::ArithmeticOverflow)?
         .checked_div(100)
         .ok_or(W3SwapError::ArithmeticOverflow)?;
-    
+
     Ok(protection_amount as u64)
 }
 
-/// Gets current timestamp
+/// Gets current timestamp from the Solana cluster clock.
+///
+/// The cluster enforces a ≈±25s drift tolerance between `Clock::unix_timestamp` and real time,
+/// so callers should treat any time-based checks that rely on this helper as having that window
+/// of leniency rather than expecting wall-clock precision.
 pub fn current_timestamp() -> i64 {
     Clock::get().unwrap().unix_timestamp
 }
@@ -224,7 +280,9 @@ pub fn current_timestamp() -> i64 {
 /// Validates migration duration is one of the preset options
 pub fn validate_migration_duration(duration_seconds: i64) -> Result<()> {
     match duration_seconds {
-        MIGRATION_DURATION_30_DAYS | MIGRATION_DURATION_60_DAYS | MIGRATION_DURATION_90_DAYS => Ok(()),
+        MIGRATION_DURATION_30_DAYS | MIGRATION_DURATION_60_DAYS | MIGRATION_DURATION_90_DAYS => {
+            Ok(())
+        }
         _ => Err(W3SwapError::InvalidMigrationDuration.into()),
     }
 }
@@ -234,3 +292,40 @@ pub fn days_to_seconds(days: u64) -> i64 {
     (days * 24 * 60 * 60) as i64
 }
 
+/// Ensures the provided program is allowlisted for swaps
+pub fn ensure_swap_program_allowed(
+    platform_config: &PlatformConfig,
+    program_id: &Pubkey,
+) -> Result<()> {
+    if !platform_config.allowed_swap_programs.contains(program_id) {
+        return Err(W3SwapError::ProgramNotAllowedForRoutes.into());
+    }
+    Ok(())
+}
+
+/// Validates swap backend (Jupiter or Meteora)
+pub fn validate_swap_backend(backend: &str, program_id: &Pubkey) -> Result<()> {
+    match backend {
+        "Jupiter" => {
+            const JUPITER_PROGRAM_ID: Pubkey =
+                pubkey!("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
+            if program_id != &JUPITER_PROGRAM_ID {
+                return Err(W3SwapError::InvalidSwapBackend.into());
+            }
+        }
+        "Meteora" => {
+            const METEORA_DLMM_PROGRAM_ID: Pubkey =
+                pubkey!("Eo7WjKq67rjJQSZxS6z3LStQTw2d3DpyzJMzvJ4w5eK");
+            if program_id != &METEORA_DLMM_PROGRAM_ID {
+                return Err(W3SwapError::InvalidSwapBackend.into());
+            }
+        }
+        _ => return Err(W3SwapError::InvalidSwapBackend.into()),
+    }
+    Ok(())
+}
+
+/// Creates seeds for liquidation state PDA (if needed in future)
+pub fn liquidation_state_seeds(project: &Pubkey) -> Vec<Vec<u8>> {
+    vec![b"liquidation_state".to_vec(), project.to_bytes().to_vec()]
+}

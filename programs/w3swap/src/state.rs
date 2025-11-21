@@ -47,16 +47,16 @@ pub const MAX_PROTECTION_PERCENTAGE: u8 = 100;
 pub struct PlatformConfig {
     /// Super admin who can manage everything
     pub super_admin: Pubkey,
-    
+
     /// List of project admins who can create projects
     pub project_admins: Vec<Pubkey>,
-    
+
     /// Wallet to receive platform fees
     pub fee_destination_wallet: Pubkey,
-    
+
     /// Programs allowed for finalization routes
     pub allowed_swap_programs: Vec<Pubkey>,
-    
+
     /// Minimum SOL commitment required for LP creation (in lamports)
     pub min_sol_commitment: u64,
 
@@ -105,25 +105,25 @@ impl PlatformConfig {
 pub struct Project {
     /// Unique project identifier
     pub project_id: u64,
-    
+
     /// Admin who created and manages this project
     pub project_admin: Pubkey,
-    
+
     /// Old token mint to migrate from
     pub old_token_mint: Pubkey,
-    
+
     /// New token mint to migrate to
     pub new_token_mint: Pubkey,
-    
+
     /// Token program for old token (SPL or Token-2022)
     pub old_token_program: Pubkey,
-    
+
     /// Token program for new token (SPL or Token-2022)
     pub new_token_program: Pubkey,
-    
+
     /// Vault holding old tokens
     pub old_token_vault: Pubkey,
-    
+
     /// Vault holding new tokens for distribution
     pub new_token_vault: Pubkey,
 
@@ -132,87 +132,101 @@ pub struct Project {
 
     /// Vault holding WSOL proceeds from swaps
     pub wsol_vault: Pubkey,
-    
+
     /// LP token escrow vault
     pub lp_escrow_vault: Pubkey,
-    
+
     /// Current project status
     pub status: ProjectStatus,
-    
+
     /// Migration start timestamp
     pub migration_start: i64,
-    
+
     /// Migration end timestamp (dynamically calculated)
     pub migration_end: i64,
-    
+
     /// Migration duration in seconds (as specified by admin)
     pub migration_duration: i64,
-    
+
     /// Total pause duration in seconds (accumulated)
     pub total_pause_duration: i64,
-    
+
     /// Last pause timestamp (0 if not paused)
     pub last_pause_start: i64,
-    
+
     /// Actual activation timestamp (when project became active)
     pub activated_at: i64,
-    
+
     /// Exchange ratio numerator (0 = 1:1 ratio)
     pub exchange_ratio_numerator: u64,
-    
+
     /// Exchange ratio denominator (0 = 1:1 ratio)
     pub exchange_ratio_denominator: u64,
 
     /// Auto-pause threshold percent copied from platform at creation
     pub auto_pause_threshold_percent: u8,
-    
+
     // Protection removed
-    
     /// Project display name
     pub project_name: String,
-    
+
     /// Total old tokens migrated
     pub total_old_migrated: u64,
-    
+
     /// Total new tokens distributed
     pub total_new_distributed: u64,
-    
+
     /// Total SOL committed for protection
     pub total_sol_committed: u64,
-    
+
     /// LP created flag
     pub lp_created: bool,
-    
+
     /// LP tokens deposited to escrow
     pub lp_tokens_deposited: u64,
-    
+
     /// LP lock end timestamp
     pub lp_lock_end: i64,
-    
+
     /// Meteora LP pool address (created at activation)
     pub meteora_pool: Pubkey,
-    
+
     /// LP configuration used for pool creation
     pub lp_config: Option<LpConfiguration>,
-    
+
     /// Special ratio enabled for certain wallets
     pub special_ratio_enabled: bool,
-    
+
     /// Special ratio wallets (who get special exchange rate)
     pub special_ratio_wallets: Vec<Pubkey>,
-    
+
     /// Allow list enabled
     pub allowlist_enabled: bool,
-    
+
     /// Deny list enabled  
     pub denylist_enabled: bool,
-    
+
     /// Allow list entries (only allocated if enabled)
     pub allowlist: Option<Vec<Pubkey>>,
-    
+
     /// Deny list entries (only allocated if enabled)
     pub denylist: Option<Vec<Pubkey>>,
-    
+
+    /// Total old tokens sold during liquidation
+    pub total_old_sold: u64,
+
+    /// Total WSOL received from liquidation
+    pub total_wsol_received: u64,
+
+    /// Liquidation backend being used
+    pub liquidation_backend: Option<SwapBackend>,
+
+    /// Last slot where liquidation was processed
+    pub last_liquidation_slot: u64,
+
+    /// Flag to prevent reentrant liquidation calls
+    pub liquidation_in_progress: bool,
+
     /// Bump seed for PDA derivation
     pub bump: u8,
 }
@@ -240,7 +254,7 @@ impl Project {
         8 + // exchange_ratio_numerator
         8 + // exchange_ratio_denominator
         1 + // auto_pause_threshold_percent
-        0 + // protection removed
+        // protection removed - no bytes allocated
         4 + 32 + // project_name (String: 4 bytes length + 32 bytes max content)
         8 + // total_old_migrated
         8 + // total_new_distributed
@@ -256,6 +270,11 @@ impl Project {
         1 + // denylist_enabled
         1 + 4 + (32 * MAX_ALLOWLIST_ENTRIES) + // allowlist (Option + Vec)
         1 + 4 + (32 * MAX_ALLOWLIST_ENTRIES) + // denylist (Option + Vec)
+        8 + // total_old_sold
+        8 + // total_wsol_received
+        1 + 1 + // liquidation_backend (Option + SwapBackend)
+        8 + // last_liquidation_slot
+        1 + // liquidation_in_progress
         1; // bump
 
     /// Calculate current end time including pause extensions
@@ -264,51 +283,54 @@ impl Project {
             // Not activated yet, return original estimate
             return self.migration_end;
         }
-        
+
         // Calculate dynamic end time: activated_at + duration + total_pause_time
         self.activated_at + self.migration_duration + self.total_pause_duration
     }
-    
+
     /// Check if migration is currently active
     pub fn is_migration_active(&self) -> bool {
         let now = Clock::get().unwrap().unix_timestamp;
+        // NOTE: `now` reflects the Solana cluster clock, which can drift by roughly ±25 seconds
+        // from wall-clock time. Operators should consider that window when interpreting
+        // start/end comparisons for migration activity.
         let current_end_time = self.calculate_current_end_time();
-        
-        self.status == ProjectStatus::Active &&
-        now >= self.migration_start &&
-        now <= current_end_time
+
+        self.status == ProjectStatus::Active
+            && now >= self.migration_start
+            && now <= current_end_time
     }
-    
+
     /// Update pause tracking when pausing
     pub fn start_pause(&mut self) -> Result<()> {
         let now = Clock::get().unwrap().unix_timestamp;
-        
+
         if self.last_pause_start != 0 {
             return Err(ProgramError::InvalidArgument.into()); // Already paused
         }
-        
+
         self.last_pause_start = now;
         Ok(())
     }
-    
+
     /// Update pause tracking when resuming
     pub fn end_pause(&mut self) -> Result<()> {
         let now = Clock::get().unwrap().unix_timestamp;
-        
+
         if self.last_pause_start == 0 {
             return Err(ProgramError::InvalidArgument.into()); // Not paused
         }
-        
+
         // Add this pause duration to total
         let pause_duration = now - self.last_pause_start;
         self.total_pause_duration += pause_duration;
-        
+
         // Update end time to account for this pause
         self.migration_end = self.calculate_current_end_time();
-        
+
         // Reset pause start
         self.last_pause_start = 0;
-        
+
         Ok(())
     }
 
@@ -322,7 +344,7 @@ impl Project {
                 }
             }
         }
-        
+
         // If allow list is enabled, check user is on it
         if self.allowlist_enabled {
             if let Some(ref allowlist) = self.allowlist {
@@ -330,7 +352,7 @@ impl Project {
             }
             return false; // Allow list enabled but empty means no one allowed
         }
-        
+
         // If no lists enabled, all users allowed
         true
     }
@@ -348,13 +370,13 @@ impl Project {
             if self.exchange_ratio_numerator == 0 || self.exchange_ratio_denominator == 0 {
                 return Err(ProgramError::InvalidArgument.into()); // Should not happen if validation works
             }
-            
+
             let new_amount = (old_amount as u128)
                 .checked_mul(self.exchange_ratio_numerator as u128)
                 .ok_or(ProgramError::ArithmeticOverflow)?
                 .checked_div(self.exchange_ratio_denominator as u128)
                 .ok_or(ProgramError::ArithmeticOverflow)?;
-            
+
             Ok(new_amount as u64)
         } else {
             // Default 1:1 ratio for all other users
@@ -366,13 +388,20 @@ impl Project {
     pub fn can_withdraw_lp(&self) -> bool {
         let now = Clock::get().unwrap().unix_timestamp;
         // LP must be created, settlement complete (status = Finalized), and lockup period ended
-        self.lp_created && 
-        self.status == ProjectStatus::Finalized && 
-        self.lp_lock_end > 0 && // Lockup period was set (settlement completed)
-        now >= self.lp_lock_end
+        self.lp_created
+        && self.status == ProjectStatus::Finalized
+        && self.lp_lock_end > 0 // Lockup period was set (settlement completed)
+        && now >= self.lp_lock_end
     }
 
     // Protection/refund timing removed
+}
+
+/// Swap backend selection for liquidation
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, Debug)]
+pub enum SwapBackend {
+    Meteora,
+    Jupiter,
 }
 
 /// Project status enumeration
@@ -388,6 +417,12 @@ pub enum ProjectStatus {
     Paused,
     /// Project migration period ended
     Ended,
+    /// Project migration completed, ready for liquidation
+    Migrated,
+    /// Project liquidation in progress
+    Liquidating,
+    /// Project liquidation completed
+    LiquidationComplete,
     /// Project finalized (LP created)
     Finalized,
 }
@@ -404,52 +439,52 @@ pub enum AdminAction {
 pub struct CreateProjectParams {
     /// Unique project identifier
     pub project_id: u64,
-    
+
     /// Project display name
     pub project_name: String,
-    
+
     /// Old token mint to migrate from
     pub old_token_mint: Pubkey,
-    
+
     /// New token mint to migrate to
     pub new_token_mint: Pubkey,
-    
+
     /// Token program for old token
     pub old_token_program: Pubkey,
-    
+
     /// Token program for new token
     pub new_token_program: Pubkey,
-    
+
     /// Migration start timestamp
     pub migration_start: i64,
-    
+
     /// Migration end timestamp
     pub migration_end: i64,
-    
+
     /// Exchange ratio numerator (0 for 1:1)
     pub exchange_ratio_numerator: u64,
-    
+
     /// Exchange ratio denominator (0 for 1:1)
     pub exchange_ratio_denominator: u64,
-    
+
     /// SOL commitment amount for LP creation (in lamports)
     pub sol_commitment_amount: u64,
-    
+
     /// Enable special ratio for certain wallets
     pub special_ratio_enabled: bool,
-    
+
     /// Wallets that get special exchange ratio
     pub special_ratio_wallets: Vec<Pubkey>,
-    
+
     /// Enable allow list
     pub allowlist_enabled: bool,
-    
+
     /// Enable deny list
     pub denylist_enabled: bool,
-    
+
     /// Allow list entries
     pub allowlist: Vec<Pubkey>,
-    
+
     /// Deny list entries
     pub denylist: Vec<Pubkey>,
 }
@@ -459,21 +494,20 @@ pub struct CreateProjectParams {
 pub struct LpConfiguration {
     /// Initial price for new token (in SOL per token)
     pub initial_price: u64, // Scaled by 1e9 for precision
-    
+
     /// Amount of new tokens to allocate for LP
     pub token_allocation: u64,
-    
+
     /// Meteora bin step (price precision in basis points)
     pub bin_step: u16,
-    
+
     /// Base trading fee in basis points
     pub base_fee: u16,
-    
+
     /// Price range for concentrated liquidity
     pub price_range_min: u64, // Scaled by 1e9
     pub price_range_max: u64, // Scaled by 1e9
 }
-
 
 /// User migration record PDA
 /// Seeds: ["user_migration", project.key(), user.key()]
@@ -481,22 +515,22 @@ pub struct LpConfiguration {
 pub struct UserMigration {
     /// Project this migration belongs to
     pub project: Pubkey,
-    
+
     /// User who performed the migration
     pub user: Pubkey,
-    
+
     /// Total old tokens migrated by user
     pub old_tokens_migrated: u64,
-    
+
     /// Total new tokens received by user
     pub new_tokens_received: u64,
-    
+
     /// SOL committed for protection
     pub sol_committed: u64,
-    
+
     /// Refund claimed flag
     pub refund_claimed: bool,
-    
+
     /// Bump seed for PDA derivation
     pub bump: u8,
 }

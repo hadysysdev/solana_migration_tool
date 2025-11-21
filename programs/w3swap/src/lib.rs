@@ -1,5 +1,8 @@
+#![allow(unexpected_cfgs)]
+
 use anchor_lang::prelude::*;
 
+pub mod adapters;
 pub mod errors;
 pub mod events;
 pub mod instructions;
@@ -7,12 +10,12 @@ pub mod state;
 pub mod utils;
 
 use instructions::*;
-use state::{AdminAction, CreateProjectParams, LpConfiguration};
+use state::{AdminAction, CreateProjectParams, LpConfiguration, SwapBackend};
 
 declare_id!("9qPx5xbqg4xZp3BWbtCNGy3GVfZ4WeaeraMUvLBSdcKh");
 
 /// W3Swap Migration Platform
-/// 
+///
 /// A secure token migration platform on Solana that enables:
 /// - Secure token swaps with admin controls
 /// - Optional migration protection with SOL commitments
@@ -30,7 +33,12 @@ pub mod w3swap {
         min_sol_commitment: u64,
         auto_pause_threshold_percent: u8,
     ) -> Result<()> {
-        instructions::initialize_platform(ctx, fee_destination_wallet, min_sol_commitment, auto_pause_threshold_percent)
+        instructions::initialize_platform(
+            ctx,
+            fee_destination_wallet,
+            min_sol_commitment,
+            auto_pause_threshold_percent,
+        )
     }
 
     /// Manage project admin list (add/remove)
@@ -43,6 +51,7 @@ pub mod w3swap {
     }
 
     /// Update platform configuration
+    #[allow(clippy::too_many_arguments)]
     pub fn update_platform_config(
         ctx: Context<UpdatePlatformConfig>,
         allowed_swap_programs: Option<Vec<Pubkey>>,
@@ -75,7 +84,17 @@ pub mod w3swap {
         instructions::update_fee_destination_wallet(ctx, new_fee_destination)
     }
 
+    /// Pre-allocate the project PDA account with full space
+    /// Required before create_project_init to avoid 10KB reallocation limit
+    pub fn allocate_project_account(
+        ctx: Context<AllocateProjectAccount>,
+        project_id: u64,
+    ) -> Result<()> {
+        instructions::allocate_project_account(ctx, project_id)
+    }
+
     /// Create project (step 1): initialize account and fields
+    /// Note: Must call allocate_project_account first
     pub fn create_project_init(
         ctx: Context<CreateProjectInit>,
         params: CreateProjectParams,
@@ -84,17 +103,12 @@ pub mod w3swap {
     }
 
     /// Create project (step 2): initialize vaults + fund SOL commitment
-    pub fn create_project_vaults(
-        ctx: Context<CreateProjectVaults>,
-    ) -> Result<()> {
+    pub fn create_project_vaults(ctx: Context<CreateProjectVaults>) -> Result<()> {
         instructions::create_project_vaults(ctx)
     }
 
     /// Fund a project with new tokens
-    pub fn fund_project(
-        ctx: Context<FundProject>,
-        amount: u64,
-    ) -> Result<()> {
+    pub fn fund_project(ctx: Context<FundProject>, amount: u64) -> Result<()> {
         instructions::fund_project(ctx, amount)
     }
 
@@ -107,23 +121,17 @@ pub mod w3swap {
     }
 
     /// Pause a project temporarily
-    pub fn pause_project(
-        ctx: Context<PauseProject>,
-    ) -> Result<()> {
+    pub fn pause_project(ctx: Context<PauseProject>) -> Result<()> {
         instructions::pause_project(ctx)
     }
 
     /// Resume a paused project
-    pub fn resume_project(
-        ctx: Context<ResumeProject>,
-    ) -> Result<()> {
+    pub fn resume_project(ctx: Context<ResumeProject>) -> Result<()> {
         instructions::resume_project(ctx)
     }
 
     /// End a project migration period
-    pub fn end_project(
-        ctx: Context<EndProject>,
-    ) -> Result<()> {
+    pub fn end_project(ctx: Context<EndProject>) -> Result<()> {
         instructions::end_project(ctx)
     }
 
@@ -137,48 +145,32 @@ pub mod w3swap {
     }
 
     /// Finalize project step 1: transfer LP/new tokens out and close LP escrow
-    pub fn finalize_project_transfers(
-        ctx: Context<FinalizeProjectTransfers>,
-    ) -> Result<()> {
+    pub fn finalize_project_transfers(ctx: Context<FinalizeProjectTransfers>) -> Result<()> {
         instructions::finalize_project_transfers(ctx)
     }
 
     /// Finalize project step 2: close remaining accounts and reclaim rent
-    pub fn close_project_accounts(
-        ctx: Context<CloseProjectAccounts>,
-    ) -> Result<()> {
+    pub fn close_project_accounts(ctx: Context<CloseProjectAccounts>) -> Result<()> {
         instructions::close_project_accounts(ctx)
     }
 
     /// Migrate old tokens for new tokens
-    pub fn migrate(
-        ctx: Context<Migrate>,
-        amount: u64,
-    ) -> Result<()> {
+    pub fn migrate(ctx: Context<Migrate>, amount: u64) -> Result<()> {
         instructions::migrate(ctx, amount)
     }
 
-
     /// Mark LP as created
-    pub fn mark_lp_created(
-        ctx: Context<MarkLpCreated>,
-    ) -> Result<()> {
+    pub fn mark_lp_created(ctx: Context<MarkLpCreated>) -> Result<()> {
         instructions::mark_lp_created(ctx)
     }
 
     /// Deposit LP tokens to escrow
-    pub fn deposit_lp(
-        ctx: Context<DepositLp>,
-        amount: u64,
-    ) -> Result<()> {
+    pub fn deposit_lp(ctx: Context<DepositLp>, amount: u64) -> Result<()> {
         instructions::deposit_lp(ctx, amount)
     }
 
     /// Withdraw LP tokens from escrow
-    pub fn withdraw_lp(
-        ctx: Context<WithdrawLp>,
-        amount: u64,
-    ) -> Result<()> {
+    pub fn withdraw_lp(ctx: Context<WithdrawLp>, amount: u64) -> Result<()> {
         instructions::withdraw_lp(ctx, amount)
     }
 
@@ -214,7 +206,10 @@ pub mod w3swap {
         let pre = ctx.accounts.wsol_vault.amount;
 
         // Project signer seeds
-        let seeds = crate::utils::project_seeds(&ctx.accounts.project.project_admin, ctx.accounts.project.project_id);
+        let seeds = crate::utils::project_seeds(
+            &ctx.accounts.project.project_admin,
+            ctx.accounts.project.project_id,
+        );
         let mut seed_refs: Vec<&[u8]> = seeds.iter().map(|s| s.as_slice()).collect();
         let bump_slice = [ctx.accounts.project.bump];
         seed_refs.push(&bump_slice);
@@ -223,14 +218,26 @@ pub mod w3swap {
         // Build CPI instruction
         let metas: Vec<anchor_lang::solana_program::instruction::AccountMeta> = rest_accounts
             .iter()
-            .map(|acc| if acc.is_writable { anchor_lang::solana_program::instruction::AccountMeta::new(*acc.key, acc.is_signer) } else { anchor_lang::solana_program::instruction::AccountMeta::new_readonly(*acc.key, acc.is_signer) })
+            .map(|acc| {
+                if acc.is_writable {
+                    anchor_lang::solana_program::instruction::AccountMeta::new(
+                        *acc.key,
+                        acc.is_signer,
+                    )
+                } else {
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        *acc.key,
+                        acc.is_signer,
+                    )
+                }
+            })
             .collect();
         let ix = anchor_lang::solana_program::instruction::Instruction {
             program_id: first_prog.key(),
             accounts: metas,
             data: ix_data,
         };
-        anchor_lang::solana_program::program::invoke_signed(&ix, &ctx.remaining_accounts, signer)
+        anchor_lang::solana_program::program::invoke_signed(&ix, ctx.remaining_accounts, signer)
             .map_err(|_| error!(errors::W3SwapError::CpiCallFailed))?;
 
         let post = ctx.accounts.wsol_vault.amount;
@@ -278,7 +285,10 @@ pub mod w3swap {
             ctx.accounts.project.wsol_vault = ctx.accounts.wsol_vault.key();
         }
         let pre = ctx.accounts.wsol_vault.amount;
-        let seeds = crate::utils::project_seeds(&ctx.accounts.project.project_admin, ctx.accounts.project.project_id);
+        let seeds = crate::utils::project_seeds(
+            &ctx.accounts.project.project_admin,
+            ctx.accounts.project.project_id,
+        );
         let mut seed_refs: Vec<&[u8]> = seeds.iter().map(|s| s.as_slice()).collect();
         let bump_slice = [ctx.accounts.project.bump];
         seed_refs.push(&bump_slice);
@@ -286,14 +296,26 @@ pub mod w3swap {
 
         let metas: Vec<anchor_lang::solana_program::instruction::AccountMeta> = rest_accounts
             .iter()
-            .map(|acc| if acc.is_writable { anchor_lang::solana_program::instruction::AccountMeta::new(*acc.key, acc.is_signer) } else { anchor_lang::solana_program::instruction::AccountMeta::new_readonly(*acc.key, acc.is_signer) })
+            .map(|acc| {
+                if acc.is_writable {
+                    anchor_lang::solana_program::instruction::AccountMeta::new(
+                        *acc.key,
+                        acc.is_signer,
+                    )
+                } else {
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        *acc.key,
+                        acc.is_signer,
+                    )
+                }
+            })
             .collect();
         let ix = anchor_lang::solana_program::instruction::Instruction {
             program_id: first_prog.key(),
             accounts: metas,
             data: ix_data,
         };
-        anchor_lang::solana_program::program::invoke_signed(&ix, &ctx.remaining_accounts, signer)
+        anchor_lang::solana_program::program::invoke_signed(&ix, ctx.remaining_accounts, signer)
             .map_err(|_| error!(errors::W3SwapError::CpiCallFailed))?;
 
         let post = ctx.accounts.wsol_vault.amount;
@@ -360,14 +382,26 @@ pub mod w3swap {
 
         let metas: Vec<anchor_lang::solana_program::instruction::AccountMeta> = rest_accounts
             .iter()
-            .map(|acc| if acc.is_writable { anchor_lang::solana_program::instruction::AccountMeta::new(*acc.key, acc.is_signer) } else { anchor_lang::solana_program::instruction::AccountMeta::new_readonly(*acc.key, acc.is_signer) })
+            .map(|acc| {
+                if acc.is_writable {
+                    anchor_lang::solana_program::instruction::AccountMeta::new(
+                        *acc.key,
+                        acc.is_signer,
+                    )
+                } else {
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        *acc.key,
+                        acc.is_signer,
+                    )
+                }
+            })
             .collect();
         let ix = anchor_lang::solana_program::instruction::Instruction {
             program_id: first_prog.key(),
             accounts: metas,
             data: lp_add_ix_data,
         };
-        anchor_lang::solana_program::program::invoke_signed(&ix, &ctx.remaining_accounts, signer)
+        anchor_lang::solana_program::program::invoke_signed(&ix, ctx.remaining_accounts, signer)
             .map_err(|_| error!(errors::W3SwapError::CpiCallFailed))?;
 
         let now = utils::current_timestamp();
@@ -387,6 +421,17 @@ pub mod w3swap {
         });
 
         Ok(())
+    }
+
+    /// Swap old tokens in batches via Jupiter or Meteora
+    pub fn swap_old_token_batch(
+        ctx: Context<SwapOldTokenBatch>,
+        backend: SwapBackend,
+        amount_in: u64,
+        min_out: u64,
+        ix_data: Vec<u8>,
+    ) -> Result<()> {
+        instructions::swap_old_token_batch(ctx, backend, amount_in, min_out, ix_data)
     }
 
     // Refund and sweep instructions removed

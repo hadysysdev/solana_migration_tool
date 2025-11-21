@@ -1,10 +1,5 @@
+use crate::{errors::W3SwapError, events::*, state::*, utils::*};
 use anchor_lang::prelude::*;
-use crate::{
-    state::*,
-    errors::W3SwapError,
-    events::*,
-    utils::*,
-};
 
 /// Initialize the platform with super admin
 #[derive(Accounts)]
@@ -17,10 +12,10 @@ pub struct InitializePlatform<'info> {
         bump
     )]
     pub platform_config: Account<'info, PlatformConfig>,
-    
+
     #[account(mut)]
     pub super_admin: Signer<'info>,
-    
+
     pub system_program: Program<'info, System>,
 }
 
@@ -35,7 +30,7 @@ pub struct ManageProjectAdmin<'info> {
         has_one = super_admin @ W3SwapError::NotSuperAdmin
     )]
     pub platform_config: Account<'info, PlatformConfig>,
-    
+
     pub super_admin: Signer<'info>,
 }
 
@@ -49,7 +44,7 @@ pub struct UpdatePlatformConfig<'info> {
         has_one = super_admin @ W3SwapError::NotSuperAdmin
     )]
     pub platform_config: Account<'info, PlatformConfig>,
-    
+
     pub super_admin: Signer<'info>,
 }
 
@@ -63,7 +58,7 @@ pub struct UpdateFeeDestinationWallet<'info> {
         has_one = super_admin @ W3SwapError::NotSuperAdmin
     )]
     pub platform_config: Account<'info, PlatformConfig>,
-    
+
     pub super_admin: Signer<'info>,
 }
 
@@ -75,14 +70,14 @@ pub fn initialize_platform(
     auto_pause_threshold_percent: u8,
 ) -> Result<()> {
     validate_not_default_pubkey(&fee_destination_wallet)?;
-    
+
     // Validate threshold percent is reasonable (1-50%)
     if auto_pause_threshold_percent == 0 || auto_pause_threshold_percent > 50 {
         return Err(W3SwapError::InvalidThresholdPercent.into());
     }
-    
+
     let platform_config = &mut ctx.accounts.platform_config;
-    
+
     platform_config.super_admin = ctx.accounts.super_admin.key();
     platform_config.project_admins = Vec::new();
     platform_config.fee_destination_wallet = fee_destination_wallet;
@@ -92,18 +87,18 @@ pub fn initialize_platform(
     // Defaults: 2 SOL platform fee, 1% settlement fee
     platform_config.platform_fee_lamports = 2_000_000_000; // 2 SOL
     platform_config.settlement_fee_percent = 1; // 1%
-    // Defaults for durations: min 30 days, max 90 days, LP lock 30 days
+                                                // Defaults for durations: min 30 days, max 90 days, LP lock 30 days
     platform_config.min_migration_days = 30;
     platform_config.max_migration_days = 90;
     platform_config.min_lp_lock_days = 30;
     platform_config.bump = ctx.bumps.platform_config;
-    
+
     emit!(PlatformInitialized {
         super_admin: ctx.accounts.super_admin.key(),
         fee_destination_wallet,
         timestamp: current_timestamp(),
     });
-    
+
     Ok(())
 }
 
@@ -114,23 +109,23 @@ pub fn manage_project_admin(
     action: AdminAction,
 ) -> Result<()> {
     validate_not_default_pubkey(&admin)?;
-    
+
     let platform_config = &mut ctx.accounts.platform_config;
-    
+
     match action {
         AdminAction::Add => {
             // Check if admin already exists
             if platform_config.project_admins.contains(&admin) {
                 return Err(W3SwapError::ProjectAdminAlreadyExists.into());
             }
-            
+
             // Check if list is full
             if platform_config.project_admins.len() >= MAX_PROJECT_ADMINS {
                 return Err(W3SwapError::ProjectAdminListFull.into());
             }
-            
+
             platform_config.project_admins.push(admin);
-            
+
             emit!(ProjectAdminManaged {
                 super_admin: ctx.accounts.super_admin.key(),
                 admin,
@@ -140,9 +135,13 @@ pub fn manage_project_admin(
         }
         AdminAction::Remove => {
             // Find and remove admin
-            if let Some(pos) = platform_config.project_admins.iter().position(|&x| x == admin) {
+            if let Some(pos) = platform_config
+                .project_admins
+                .iter()
+                .position(|&x| x == admin)
+            {
                 platform_config.project_admins.remove(pos);
-                
+
                 emit!(ProjectAdminManaged {
                     super_admin: ctx.accounts.super_admin.key(),
                     admin,
@@ -154,11 +153,12 @@ pub fn manage_project_admin(
             }
         }
     }
-    
+
     Ok(())
 }
 
 /// Update platform configuration
+#[allow(clippy::too_many_arguments)]
 pub fn update_platform_config(
     ctx: Context<UpdatePlatformConfig>,
     allowed_swap_programs: Option<Vec<Pubkey>>,
@@ -171,21 +171,21 @@ pub fn update_platform_config(
     min_lp_lock_days: Option<u8>,
 ) -> Result<()> {
     let platform_config = &mut ctx.accounts.platform_config;
-    
+
     if let Some(programs) = allowed_swap_programs {
         // Validate program list size
         if programs.len() > MAX_ALLOWED_SWAP_PROGRAMS {
             return Err(W3SwapError::AllowedSwapProgramsListFull.into());
         }
-        
+
         // Validate no default pubkeys
         for program in &programs {
             validate_not_default_pubkey(program)?;
         }
-        
+
         platform_config.allowed_swap_programs = programs;
     }
-    
+
     if let Some(min_commitment) = min_sol_commitment {
         // Validate minimum is reasonable (at least 0.1 SOL)
         if min_commitment < 100_000_000 {
@@ -193,7 +193,7 @@ pub fn update_platform_config(
         }
         platform_config.min_sol_commitment = min_commitment;
     }
-    
+
     if let Some(threshold_percent) = auto_pause_threshold_percent {
         // Validate threshold percent is reasonable (1-50%)
         if threshold_percent == 0 || threshold_percent > 50 {
@@ -229,7 +229,7 @@ pub fn update_platform_config(
     }
 
     if let Some(max_days) = max_migration_days {
-        if max_days == 0 || max_days > 255 {
+        if max_days == 0 {
             return Err(W3SwapError::InvalidInstructionData.into());
         }
         platform_config.max_migration_days = max_days;
@@ -241,18 +241,18 @@ pub fn update_platform_config(
     }
 
     if let Some(lock_days) = min_lp_lock_days {
-        if lock_days == 0 || lock_days > 255 {
+        if lock_days == 0 {
             return Err(W3SwapError::InvalidInstructionData.into());
         }
         platform_config.min_lp_lock_days = lock_days;
     }
-    
+
     emit!(PlatformConfigUpdated {
         super_admin: ctx.accounts.super_admin.key(),
         allowed_swap_programs_count: platform_config.allowed_swap_programs.len() as u8,
         timestamp: current_timestamp(),
     });
-    
+
     Ok(())
 }
 
@@ -262,18 +262,18 @@ pub fn update_fee_destination_wallet(
     new_fee_destination: Pubkey,
 ) -> Result<()> {
     validate_not_default_pubkey(&new_fee_destination)?;
-    
+
     let platform_config = &mut ctx.accounts.platform_config;
     let old_fee_destination = platform_config.fee_destination_wallet;
-    
+
     platform_config.fee_destination_wallet = new_fee_destination;
-    
+
     emit!(FeeDestinationWalletUpdated {
         super_admin: ctx.accounts.super_admin.key(),
         old_fee_destination,
         new_fee_destination,
         timestamp: current_timestamp(),
     });
-    
+
     Ok(())
 }
