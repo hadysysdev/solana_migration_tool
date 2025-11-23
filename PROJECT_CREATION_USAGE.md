@@ -50,6 +50,7 @@ async function allocateProjectAccount(
     .allocateProjectAccount(projectId)
     .accounts({
       platformConfig: platformConfigPda,
+      payer: payerKeypair.publicKey,
       projectAdmin: projectAdmin,
       project: projectPda,
       systemProgram: SystemProgram.programId,
@@ -222,6 +223,7 @@ pub fn allocate_project_account(
         .request()
         .accounts(w3swap::accounts::AllocateProjectAccount {
             platform_config: platform_config_pda,
+            payer: project_admin.pubkey(),
             project_admin: project_admin.pubkey(),
             project: project_pda,
             system_program: system_program::id(),
@@ -260,9 +262,10 @@ pub fn create_project_vaults(
 
 1. **Order Matters**: You MUST call `allocateProjectAccount` before `createProjectInit`
 2. **Same Transaction**: You can combine all three instructions in a single transaction if desired
-3. **Idempotency**: `allocateProjectAccount` will fail if the account already exists
+3. **Idempotency**: `allocateProjectAccount` returns success if the account already exists and is owned by W3Swap
 4. **Space Calculation**: The account is allocated with `Project::LEN` bytes (~96KB)
 5. **Rent**: The payer must have enough SOL to cover rent-exemption for the large account
+6. **Flexible Funding**: The new `payer` account funds rent; it can be different from the project admin but must sign the transaction
 
 ## Error Handling
 

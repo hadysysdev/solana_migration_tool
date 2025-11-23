@@ -234,6 +234,7 @@ export class W3SwapClientV2 {
       return m(projectId)
         .accounts({
           platformConfig,
+          payer: this.provider.wallet.publicKey,
           projectAdmin: this.provider.wallet.publicKey,
           project,
           systemProgram: SystemProgram.programId,
@@ -242,6 +243,7 @@ export class W3SwapClientV2 {
     }
     const ix = this.buildIx("allocate_project_account", {
       platform_config: platformConfig,
+      payer: this.provider.wallet.publicKey,
       project_admin: this.provider.wallet.publicKey,
       project,
       system_program: SystemProgram.programId,

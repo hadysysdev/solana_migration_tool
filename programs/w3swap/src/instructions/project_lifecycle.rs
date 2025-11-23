@@ -1,4 +1,5 @@
-use anchor_lang::{prelude::*, system_program};
+use anchor_lang::prelude::*;
+use anchor_lang::solana_program::{program::invoke_signed, system_instruction};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 // WSOL vault address will be set lazily during first swap via adapters
 use crate::{errors::W3SwapError, events::*, state::*, utils::*};
@@ -14,8 +15,11 @@ pub struct AllocateProjectAccount<'info> {
     )]
     pub platform_config: Account<'info, PlatformConfig>,
 
+    /// Signer that funds rent for the oversized project PDA
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
     #[account(
-        mut,
         constraint = platform_config.project_admins.contains(&project_admin.key()) @ W3SwapError::NotProjectAdmin
     )]
     pub project_admin: Signer<'info>,
@@ -29,6 +33,7 @@ pub struct AllocateProjectAccount<'info> {
     pub project: UncheckedAccount<'info>,
 
     pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 /// Create a new migration project (step 1: init project only)
@@ -352,32 +357,58 @@ pub struct FinalizeProjectTransfers<'info> {
 }
 
 /// Pre-allocate the project PDA account with full space
-/// This is required before calling create_project_init to avoid the
-/// 10,240 byte reallocation limit for inner instructions.
-/// The Project struct size exceeds 10KB (96,584 bytes) due to Vec fields,
-/// so we must allocate the full space upfront rather than attempting to
-/// reallocate during initialization.
+/// This is required before calling create_project_init to avoid Solana's
+/// 10,240 byte reallocation limit for inner instructions. By manually
+/// issuing the system program create instruction here we ensure the account
+/// reaches its full size in a dedicated top-level instruction and never
+/// relies on Anchor's `init` constraint (which would try to reallocate
+/// inside another instruction).
 pub fn allocate_project_account(
     ctx: Context<AllocateProjectAccount>,
     project_id: u64,
 ) -> Result<()> {
     let project_info = ctx.accounts.project.to_account_info();
 
-    if project_info.lamports() > 0 || project_info.data_len() > 0 {
-        return Err(W3SwapError::ProjectAlreadyAllocated.into());
-    }
-    if project_info.owner != &System::id() {
-        return Err(W3SwapError::InvalidAccountOwner.into());
+    // If the project was already allocated we simply verify ownership/size
+    // and allow the call to succeed. This makes the instruction idempotent
+    // for clients that retry transactions.
+    if *project_info.owner == crate::ID {
+        require_eq!(
+            project_info.data_len(),
+            Project::LEN,
+            W3SwapError::InvalidAccountOwner
+        );
+        return Ok(());
     }
 
-    let account_size = Project::LEN as u64;
-    let rent = Rent::get()?;
-    let required_lamports = rent.minimum_balance(Project::LEN);
+    require_keys_eq!(
+        *project_info.owner,
+        System::id(),
+        W3SwapError::InvalidAccountOwner
+    );
+    require_eq!(
+        project_info.lamports(),
+        0,
+        W3SwapError::ProjectAlreadyAllocated
+    );
+    require_eq!(
+        project_info.data_len(),
+        0,
+        W3SwapError::ProjectAlreadyAllocated
+    );
+
+    let declared_space = Project::LEN;
+    let runtime_struct = 8 + core::mem::size_of::<Project>();
+    require!(
+        declared_space >= runtime_struct,
+        W3SwapError::InvalidInstructionData
+    );
+    let rent_lamports = ctx.accounts.rent.minimum_balance(declared_space);
+    let space = declared_space as u64;
 
     let project_id_bytes = project_id.to_le_bytes();
+    let bump_bytes = [ctx.bumps.project];
     let project_admin_key = ctx.accounts.project_admin.key();
-    let bump = ctx.bumps.project;
-    let bump_bytes = [bump];
     let signer_seeds: &[&[u8]] = &[
         b"project",
         project_admin_key.as_ref(),
@@ -385,18 +416,21 @@ pub fn allocate_project_account(
         &bump_bytes,
     ];
 
-    system_program::create_account(
-        CpiContext::new_with_signer(
-            ctx.accounts.system_program.to_account_info(),
-            system_program::CreateAccount {
-                from: ctx.accounts.project_admin.to_account_info(),
-                to: project_info.clone(),
-            },
-            &[signer_seeds],
+    // Manually invoke the system program so no realloc CPI occurs.
+    invoke_signed(
+        &system_instruction::create_account(
+            &ctx.accounts.payer.key(),
+            &ctx.accounts.project.key(),
+            rent_lamports,
+            space,
+            &crate::ID,
         ),
-        required_lamports,
-        account_size,
-        &crate::ID,
+        &[
+            ctx.accounts.payer.to_account_info(),
+            project_info.clone(),
+            ctx.accounts.system_program.to_account_info(),
+        ],
+        &[signer_seeds],
     )?;
 
     let mut data = project_info.try_borrow_mut_data()?;

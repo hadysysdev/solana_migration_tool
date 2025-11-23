@@ -545,3 +545,14 @@ impl UserMigration {
         1 + // refund_claimed
         1; // bump
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn project_len_covers_runtime_struct() {
+        let runtime = 8 + core::mem::size_of::<Project>();
+        assert!(Project::LEN >= runtime);
+    }
+}

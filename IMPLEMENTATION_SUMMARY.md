@@ -18,9 +18,8 @@ Split project creation into three instructions:
 
 #### 1. `programs/w3swap/src/instructions/project_lifecycle.rs`
 **Added:**
-- New `AllocateProjectAccount` struct (accounts context)
-- New `allocate_project_account` handler function
-- Uses system_program::create_account CPI to allocate full space upfront
+- New `AllocateProjectAccount` context that introduces a dedicated `payer` signer plus the rent sysvar
+- New `allocate_project_account` handler function that manually invokes `system_instruction::create_account`
 - Sets Anchor discriminator [205, 168, 189, 202, 181, 247, 142, 19] for Project account
 
 **Modified:**
@@ -122,7 +121,7 @@ Calculated from: `sha256("account:Project")[0..8]`
 - [x] Documentation created
 - [ ] End-to-end test (requires deployment)
 - [ ] Error handling verification
-- [ ] Idempotency test (calling allocate twice should fail)
+- [ ] Idempotency test (calling allocate twice should be a no-op)
 
 ## Client Flow Example
 
@@ -133,7 +132,7 @@ const projectId = Date.now();
 // Step 1: Allocate account
 await program.methods
   .allocateProjectAccount(new BN(projectId))
-  .accounts({ platformConfig, projectAdmin, project, systemProgram })
+  .accounts({ platformConfig, payer: wallet.publicKey, projectAdmin, project, systemProgram })
   .rpc();
 
 // Step 2: Initialize data
