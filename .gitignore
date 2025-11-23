@@ -66,6 +66,10 @@ wallet.json
 id.json
 *.wallet
 custom-wallet
+contract_client
+audits
+github_issues
+
 
 # Solana/Anchor specific
 .anchor/
@@ -104,6 +108,12 @@ Desktop.ini
 # Build info files
 BUILD_STATUS.md
 DEPLOYMENT_STATUS.md
+BUILD_VERIFICATION_REPORT.md
+CI_TRIGGER_AUDIT_RETARGET.md
+EXECUTION_REPORT.md
+IMPLEMENTATION_SUMMARY.md
+INSTRUCTIONS.md
+ISSUES_READY.md
 
 # Local development files
 *.local
