@@ -180,6 +180,95 @@ export type W3swap = {
       ]
     },
     {
+      "name": "allocateProjectAccount",
+      "docs": [
+        "Pre-allocate the project PDA account with full space",
+        "Required before create_project_init to avoid 10KB reallocation limit"
+      ],
+      "discriminator": [
+        198,
+        123,
+        234,
+        139,
+        136,
+        8,
+        111,
+        13
+      ],
+      "accounts": [
+        {
+          "name": "platformConfig",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "projectAdmin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "projectAdmin"
+              },
+              {
+                "kind": "arg",
+                "path": "projectId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "projectId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "closeProjectAccounts",
       "docs": [
         "Finalize project step 2: close remaining accounts and reclaim rent"
@@ -380,97 +469,10 @@ export type W3swap = {
       ]
     },
     {
-      "name": "allocateProjectAccount",
-      "docs": [
-        "Pre-allocate the project PDA to avoid Solana's 10KB reallocation limit"
-      ],
-      "discriminator": [
-        198,
-        123,
-        234,
-        139,
-        136,
-        8,
-        111,
-        13
-      ],
-      "accounts": [
-        {
-          "name": "platformConfig",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  108,
-                  97,
-                  116,
-                  102,
-                  111,
-                  114,
-                  109,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "projectAdmin",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "project",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  114,
-                  111,
-                  106,
-                  101,
-                  99,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "projectAdmin"
-              },
-              {
-                "kind": "arg",
-                "path": "projectId"
-              }
-            ]
-          }
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "projectId",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "createProjectInit",
       "docs": [
-        "Create project (step 1): initialize account and fields"
+        "Create project (step 1): initialize account and fields",
+        "Note: Must call allocate_project_account first"
       ],
       "discriminator": [
         123,
@@ -1899,6 +1901,134 @@ export type W3swap = {
       "args": []
     },
     {
+      "name": "swapOldTokenBatch",
+      "docs": [
+        "Swap old tokens in batches via Jupiter or Meteora"
+      ],
+      "discriminator": [
+        25,
+        229,
+        1,
+        187,
+        131,
+        241,
+        50,
+        77
+      ],
+      "accounts": [
+        {
+          "name": "platformConfig",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "projectAdmin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oldTokenVault",
+          "writable": true
+        },
+        {
+          "name": "wsolVault",
+          "writable": true
+        },
+        {
+          "name": "oldTokenMint"
+        },
+        {
+          "name": "wsolMint"
+        },
+        {
+          "name": "oldTokenProgram"
+        },
+        {
+          "name": "wsolTokenProgram"
+        },
+        {
+          "name": "projectAdmin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "backend",
+          "type": {
+            "defined": {
+              "name": "swapBackend"
+            }
+          }
+        },
+        {
+          "name": "amountIn",
+          "type": "u64"
+        },
+        {
+          "name": "minOut",
+          "type": "u64"
+        },
+        {
+          "name": "ixData",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
       "name": "updateFeeDestinationWallet",
       "docs": [
         "Update fee destination wallet"
@@ -2163,19 +2293,6 @@ export type W3swap = {
         142,
         19
       ]
-    },
-    {
-      "name": "userMigration",
-      "discriminator": [
-        219,
-        194,
-        245,
-        85,
-        15,
-        214,
-        204,
-        163
-      ]
     }
   ],
   "events": [
@@ -2242,6 +2359,32 @@ export type W3swap = {
         120,
         185,
         163
+      ]
+    },
+    {
+      "name": "oldTokenBatchSwapped",
+      "discriminator": [
+        12,
+        66,
+        107,
+        101,
+        124,
+        67,
+        154,
+        60
+      ]
+    },
+    {
+      "name": "oldTokenLiquidationComplete",
+      "discriminator": [
+        132,
+        23,
+        32,
+        151,
+        94,
+        71,
+        176,
+        78
       ]
     },
     {
@@ -2408,253 +2551,328 @@ export type W3swap = {
     },
     {
       "code": 6006,
-      "name": "invalidMigrationDuration",
-      "msg": "Invalid migration duration (must be exactly 30, 60, or 90 days)"
+      "name": "amountIsZero",
+      "msg": "Amount must be greater than zero"
     },
     {
       "code": 6007,
-      "name": "invalidMigrationPeriod",
-      "msg": "Invalid migration period (start/end timestamps)"
-    },
-    {
-      "code": 6008,
-      "name": "invalidExchangeRatio",
-      "msg": "Invalid exchange ratio"
-    },
-    {
-      "code": 6009,
-      "name": "invalidProtectionPercentage",
-      "msg": "Invalid protection percentage (50-100%)"
-    },
-    {
-      "code": 6010,
-      "name": "invalidRecoveryDelay",
-      "msg": "Invalid recovery delay (7-30 days)"
-    },
-    {
-      "code": 6011,
-      "name": "allowListFull",
-      "msg": "Allow list is full"
-    },
-    {
-      "code": 6012,
-      "name": "denyListFull",
-      "msg": "Deny list is full"
-    },
-    {
-      "code": 6013,
-      "name": "invalidProjectStatus",
-      "msg": "Project not in correct status"
-    },
-    {
-      "code": 6014,
-      "name": "migrationNotActive",
-      "msg": "Migration not active"
-    },
-    {
-      "code": 6015,
-      "name": "userNotAllowed",
-      "msg": "User not allowed to migrate"
-    },
-    {
-      "code": 6016,
-      "name": "userOnDenyList",
-      "msg": "User is on deny list"
-    },
-    {
-      "code": 6017,
-      "name": "userNotOnAllowList",
-      "msg": "User not on allow list"
-    },
-    {
-      "code": 6018,
-      "name": "insufficientTokensInVault",
-      "msg": "Insufficient tokens in vault"
-    },
-    {
-      "code": 6019,
-      "name": "insufficientSolForProtection",
-      "msg": "Insufficient SOL for protection"
-    },
-    {
-      "code": 6020,
-      "name": "projectNotFunded",
-      "msg": "Project not funded"
-    },
-    {
-      "code": 6021,
-      "name": "migrationPeriodEnded",
-      "msg": "Migration period has ended"
-    },
-    {
-      "code": 6022,
-      "name": "migrationPeriodNotEnded",
-      "msg": "Migration period has not ended"
-    },
-    {
-      "code": 6023,
-      "name": "lpCreationDeadlineNotReached",
-      "msg": "LP creation deadline not reached"
-    },
-    {
-      "code": 6024,
-      "name": "lpAlreadyCreated",
-      "msg": "LP already created"
-    },
-    {
-      "code": 6025,
-      "name": "lpNotCreated",
-      "msg": "LP not created"
-    },
-    {
-      "code": 6026,
-      "name": "lpStillLocked",
-      "msg": "LP still locked"
-    },
-    {
-      "code": 6027,
-      "name": "lockupPeriodNotEnded",
-      "msg": "Lockup period has not ended"
-    },
-    {
-      "code": 6028,
-      "name": "recoveryPeriodNotStarted",
-      "msg": "Recovery period not started"
-    },
-    {
-      "code": 6029,
-      "name": "refundAlreadyClaimed",
-      "msg": "Refund already claimed"
-    },
-    {
-      "code": 6030,
-      "name": "noRefundAvailable",
-      "msg": "No refund available"
-    },
-    {
-      "code": 6031,
-      "name": "protectionNotEnabled",
-      "msg": "Protection not enabled"
-    },
-    {
-      "code": 6032,
-      "name": "programNotAllowedForRoutes",
-      "msg": "Program not allowed for routes"
-    },
-    {
-      "code": 6033,
-      "name": "minimumOutputNotMet",
-      "msg": "Minimum output not met"
-    },
-    {
-      "code": 6034,
-      "name": "invalidTokenProgram",
-      "msg": "Invalid token program"
-    },
-    {
-      "code": 6035,
-      "name": "amountIsZero",
-      "msg": "Amount is zero"
-    },
-    {
-      "code": 6036,
       "name": "arithmeticOverflow",
       "msg": "Arithmetic overflow"
     },
     {
-      "code": 6037,
-      "name": "invalidPdaSeeds",
-      "msg": "Invalid PDA seeds"
+      "code": 6008,
+      "name": "invalidInstructionData",
+      "msg": "Invalid instruction data provided"
     },
     {
-      "code": 6038,
-      "name": "accountAlreadyInitialized",
-      "msg": "Account already initialized"
+      "code": 6009,
+      "name": "invalidTokenProgram",
+      "msg": "Invalid token program for the given account"
     },
     {
-      "code": 6039,
-      "name": "accountNotInitialized",
-      "msg": "Account not initialized"
-    },
-    {
-      "code": 6040,
+      "code": 6010,
       "name": "invalidAccountOwner",
       "msg": "Invalid account owner"
     },
     {
-      "code": 6041,
+      "code": 6011,
       "name": "tokenMintMismatch",
       "msg": "Token mint mismatch"
     },
     {
-      "code": 6042,
-      "name": "invalidVaultAuthority",
-      "msg": "Invalid vault authority"
-    },
-    {
-      "code": 6043,
+      "code": 6012,
       "name": "cpiCallFailed",
-      "msg": "CPI call failed"
+      "msg": "Cross-program invocation failed"
     },
     {
-      "code": 6044,
-      "name": "invalidInstructionData",
-      "msg": "Invalid instruction data"
+      "code": 6013,
+      "name": "insufficientTokensInVault",
+      "msg": "Insufficient tokens available in vault"
     },
     {
-      "code": 6045,
-      "name": "routeExecutionFailed",
-      "msg": "Route execution failed"
+      "code": 6014,
+      "name": "minimumOutputNotMet",
+      "msg": "Minimum output requirement not met"
     },
     {
-      "code": 6046,
+      "code": 6015,
       "name": "slippageToleranceExceeded",
       "msg": "Slippage tolerance exceeded"
     },
     {
-      "code": 6047,
-      "name": "emptySpecialRatioList",
-      "msg": "Special ratio list is empty"
+      "code": 6016,
+      "name": "invalidMigrationDuration",
+      "msg": "Invalid migration duration (must be exactly 30, 60, or 90 days)"
     },
     {
-      "code": 6048,
+      "code": 6017,
+      "name": "invalidMigrationPeriod",
+      "msg": "Invalid migration period (start/end timestamps)"
+    },
+    {
+      "code": 6018,
+      "name": "invalidExchangeRatio",
+      "msg": "Invalid exchange ratio"
+    },
+    {
+      "code": 6019,
+      "name": "invalidProtectionPercentage",
+      "msg": "Invalid protection percentage (50-100%)"
+    },
+    {
+      "code": 6020,
+      "name": "invalidRecoveryDelay",
+      "msg": "Invalid recovery delay (7-30 days)"
+    },
+    {
+      "code": 6021,
+      "name": "insufficientSolCommitment",
+      "msg": "Insufficient SOL commitment for project"
+    },
+    {
+      "code": 6022,
+      "name": "insufficientSolForProtection",
+      "msg": "Insufficient SOL provided for protection"
+    },
+    {
+      "code": 6023,
+      "name": "allowListFull",
+      "msg": "Allow list is full"
+    },
+    {
+      "code": 6024,
+      "name": "denyListFull",
+      "msg": "Deny list is full"
+    },
+    {
+      "code": 6025,
       "name": "specialRatioListFull",
       "msg": "Special ratio list is full"
     },
     {
-      "code": 6049,
+      "code": 6026,
+      "name": "emptySpecialRatioList",
+      "msg": "Special ratio list cannot be empty"
+    },
+    {
+      "code": 6027,
       "name": "invalidSpecialRatioConfig",
       "msg": "Invalid special ratio configuration"
     },
     {
-      "code": 6050,
-      "name": "invalidSolCommitment",
-      "msg": "Invalid SOL commitment amount"
+      "code": 6028,
+      "name": "invalidProjectStatus",
+      "msg": "Project not in correct status"
     },
     {
-      "code": 6051,
-      "name": "insufficientSolCommitment",
-      "msg": "SOL commitment is below platform minimum"
+      "code": 6029,
+      "name": "migrationNotActive",
+      "msg": "Migration not active"
     },
     {
-      "code": 6052,
+      "code": 6030,
+      "name": "migrationPeriodEnded",
+      "msg": "Migration period has ended"
+    },
+    {
+      "code": 6031,
+      "name": "userNotAllowedToMigrate",
+      "msg": "User not allowed to migrate"
+    },
+    {
+      "code": 6032,
+      "name": "migrationAlreadyCompleted",
+      "msg": "Migration already completed"
+    },
+    {
+      "code": 6033,
+      "name": "migrationExpired",
+      "msg": "Migration expired"
+    },
+    {
+      "code": 6034,
+      "name": "invalidMigrationAmount",
+      "msg": "Invalid migration amount"
+    },
+    {
+      "code": 6035,
+      "name": "insufficientTokenBalance",
+      "msg": "Insufficient token balance for migration"
+    },
+    {
+      "code": 6036,
+      "name": "newTokenAccountNotProvided",
+      "msg": "New token account not provided"
+    },
+    {
+      "code": 6037,
+      "name": "oldTokenAccountNotProvided",
+      "msg": "Old token account not provided"
+    },
+    {
+      "code": 6038,
+      "name": "invalidTokenAccountOwner",
+      "msg": "Invalid token account owner"
+    },
+    {
+      "code": 6039,
+      "name": "tokenAccountFrozen",
+      "msg": "Token account is frozen"
+    },
+    {
+      "code": 6040,
+      "name": "invalidExchangeRate",
+      "msg": "Invalid exchange rate"
+    },
+    {
+      "code": 6041,
+      "name": "exchangeRateAlreadySet",
+      "msg": "Exchange rate already set"
+    },
+    {
+      "code": 6042,
+      "name": "exchangeRateNotSet",
+      "msg": "Exchange rate not set"
+    },
+    {
+      "code": 6043,
       "name": "invalidLpCreationDeadline",
       "msg": "Invalid LP creation deadline (1-30 days)"
     },
     {
-      "code": 6053,
+      "code": 6044,
+      "name": "lpAlreadyCreated",
+      "msg": "LP already created"
+    },
+    {
+      "code": 6045,
+      "name": "lpNotCreated",
+      "msg": "LP not created yet"
+    },
+    {
+      "code": 6046,
+      "name": "lpStillLocked",
+      "msg": "LP tokens are still locked"
+    },
+    {
+      "code": 6047,
+      "name": "lockupPeriodNotEnded",
+      "msg": "Lockup period has not ended"
+    },
+    {
+      "code": 6048,
+      "name": "projectNotFunded",
+      "msg": "Project not funded"
+    },
+    {
+      "code": 6049,
       "name": "projectNotReady",
       "msg": "Project cannot be activated before start time"
     },
     {
-      "code": 6054,
+      "code": 6050,
       "name": "invalidThresholdPercent",
       "msg": "Invalid auto-pause threshold percentage"
     },
     {
-      "code": 6055,
+      "code": 6051,
+      "name": "invalidSolCommitment",
+      "msg": "Invalid SOL commitment amount"
+    },
+    {
+      "code": 6052,
       "name": "insufficientVaultBalanceToResume",
       "msg": "Vault balance too low to resume - please top up vault"
+    },
+    {
+      "code": 6053,
+      "name": "invalidRouteAccount",
+      "msg": "Invalid route account structure"
+    },
+    {
+      "code": 6054,
+      "name": "routeExceedsMaxHops",
+      "msg": "Route exceeds maximum hop count"
+    },
+    {
+      "code": 6055,
+      "name": "insufficientComputeBudget",
+      "msg": "Insufficient compute budget for route"
+    },
+    {
+      "code": 6056,
+      "name": "invalidJupiterProgramState",
+      "msg": "Invalid Jupiter program state"
+    },
+    {
+      "code": 6057,
+      "name": "invalidMeteoraPoolConfig",
+      "msg": "Invalid Meteora pool configuration"
+    },
+    {
+      "code": 6058,
+      "name": "liquidationNotAllowed",
+      "msg": "Liquidation not allowed - project not in correct status"
+    },
+    {
+      "code": 6059,
+      "name": "liquidationInProgress",
+      "msg": "Liquidation already in progress - reentrancy not allowed"
+    },
+    {
+      "code": 6060,
+      "name": "noOldTokensRemaining",
+      "msg": "No old tokens remaining to liquidate"
+    },
+    {
+      "code": 6061,
+      "name": "invalidSwapBackend",
+      "msg": "Invalid swap backend specified"
+    },
+    {
+      "code": 6062,
+      "name": "liquidationAlreadyCompleted",
+      "msg": "Liquidation already completed"
+    },
+    {
+      "code": 6063,
+      "name": "invalidLiquidationAccounts",
+      "msg": "Invalid remaining accounts for liquidation"
+    },
+    {
+      "code": 6064,
+      "name": "liquidationAmountExceedsBalance",
+      "msg": "Liquidation amount exceeds available balance"
+    },
+    {
+      "code": 6065,
+      "name": "liquidationSlippageExceeded",
+      "msg": "Slippage protection triggered during liquidation"
+    },
+    {
+      "code": 6066,
+      "name": "invalidLiquidationAccountConfig",
+      "msg": "Invalid liquidation account configuration"
+    },
+    {
+      "code": 6067,
+      "name": "programNotAllowedForRoutes",
+      "msg": "Program not allowed for routing operations"
+    },
+    {
+      "code": 6068,
+      "name": "userMigrationAlreadyInitialized",
+      "msg": "User migration account already initialized"
+    },
+    {
+      "code": 6069,
+      "name": "userMigrationAccountMismatch",
+      "msg": "User migration account does not match expected project or user"
+    },
+    {
+      "code": 6070,
+      "name": "projectAlreadyAllocated",
+      "msg": "Project account already allocated"
     }
   ],
   "types": [
@@ -2992,7 +3210,11 @@ export type W3swap = {
     {
       "name": "migrationPerformed",
       "docs": [
-        "Migration performed event"
+        "Migration performed event.",
+        "",
+        "Amount fields are derived from on-chain state and therefore publicly disclose migration flow",
+        "totals. Operators concerned about business-sensitive metrics should account for that",
+        "transparency when configuring migrations."
       ],
       "type": {
         "kind": "struct",
@@ -3024,6 +3246,96 @@ export type W3swap = {
           {
             "name": "totalNewDistributed",
             "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "oldTokenBatchSwapped",
+      "docs": [
+        "Old token batch swap executed during liquidation.",
+        "",
+        "Amount fields log observed vault deltas on-chain, so liquidation throughput and inventory levels",
+        "are inherently public when this event is emitted."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "projectId",
+            "type": "u64"
+          },
+          {
+            "name": "projectPda",
+            "type": "pubkey"
+          },
+          {
+            "name": "backend",
+            "type": "string"
+          },
+          {
+            "name": "amountIn",
+            "docs": [
+              "Actual old-token balance delta observed in the vault (handles fee-on-transfer tokens)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "amountOut",
+            "docs": [
+              "Actual WSOL balance delta observed in the vault (post-fee amount received)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "remainingBalance",
+            "type": "u64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "oldTokenLiquidationComplete",
+      "docs": [
+        "Old token liquidation completed.",
+        "",
+        "The totals emitted here are calculated from on-chain balances, revealing liquidation outcomes",
+        "to the broader network; plan accordingly if this data is considered sensitive."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "projectId",
+            "type": "u64"
+          },
+          {
+            "name": "projectPda",
+            "type": "pubkey"
+          },
+          {
+            "name": "totalOldSold",
+            "type": "u64"
+          },
+          {
+            "name": "totalWsolReceived",
+            "type": "u64"
+          },
+          {
+            "name": "backend",
+            "type": "string"
           },
           {
             "name": "timestamp",
@@ -3461,6 +3773,47 @@ export type W3swap = {
             }
           },
           {
+            "name": "totalOldSold",
+            "docs": [
+              "Total old tokens sold during liquidation"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "totalWsolReceived",
+            "docs": [
+              "Total WSOL received from liquidation"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "liquidationBackend",
+            "docs": [
+              "Liquidation backend being used"
+            ],
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "swapBackend"
+                }
+              }
+            }
+          },
+          {
+            "name": "lastLiquidationSlot",
+            "docs": [
+              "Last slot where liquidation was processed"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "liquidationInProgress",
+            "docs": [
+              "Flag to prevent reentrant liquidation calls"
+            ],
+            "type": "bool"
+          },
+          {
             "name": "bump",
             "docs": [
               "Bump seed for PDA derivation"
@@ -3642,6 +3995,15 @@ export type W3swap = {
             "name": "ended"
           },
           {
+            "name": "migrated"
+          },
+          {
+            "name": "liquidating"
+          },
+          {
+            "name": "liquidationComplete"
+          },
+          {
             "name": "finalized"
           }
         ]
@@ -3693,7 +4055,10 @@ export type W3swap = {
     {
       "name": "settlementCompleted",
       "docs": [
-        "Settlement completed event (LP created and lockup starts)"
+        "Settlement completed event (LP created and lockup starts).",
+        "",
+        "Settlement amounts originate from on-chain balances and are globally visible, which may reveal",
+        "revenue or treasury performance metrics to observers."
       ],
       "type": {
         "kind": "struct",
@@ -3734,9 +4099,29 @@ export type W3swap = {
       }
     },
     {
+      "name": "swapBackend",
+      "docs": [
+        "Swap backend selection for liquidation"
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "meteora"
+          },
+          {
+            "name": "jupiter"
+          }
+        ]
+      }
+    },
+    {
       "name": "swapExecuted",
       "docs": [
-        "Swap executed via adapter (Jupiter/Meteora)"
+        "Swap executed via adapter (Jupiter/Meteora).",
+        "",
+        "Route and amount fields expose precise trading flow on-chain; treat them as public diagnostics",
+        "rather than private accounting data."
       ],
       "type": {
         "kind": "struct",
@@ -3772,67 +4157,6 @@ export type W3swap = {
           {
             "name": "timestamp",
             "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "userMigration",
-      "docs": [
-        "User migration record PDA",
-        "Seeds: [\"user_migration\", project.key(), user.key()]"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "project",
-            "docs": [
-              "Project this migration belongs to"
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "user",
-            "docs": [
-              "User who performed the migration"
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "oldTokensMigrated",
-            "docs": [
-              "Total old tokens migrated by user"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "newTokensReceived",
-            "docs": [
-              "Total new tokens received by user"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "solCommitted",
-            "docs": [
-              "SOL committed for protection"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "refundClaimed",
-            "docs": [
-              "Refund claimed flag"
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "bump",
-            "docs": [
-              "Bump seed for PDA derivation"
-            ],
-            "type": "u8"
           }
         ]
       }
