@@ -250,6 +250,37 @@ async  createProjectVaults(
 
 
 
+async  createProject(
+  params: CreateProjectParams,
+) {
+  // Step 1: Allocate
+  console.log('Step 1: Allocating project account...');
+  const projectPda = await this.allocateProjectAccount(
+    params.projectId,
+  );
+  console.log('Done allocating project account');
+  // Step 2: Initialize
+  console.log('Step 2: Initializing project data...');
+  const trx = await this.createProjectInit(
+    params
+  );
+  console.log('Done initializing project data: ', trx)
+
+  // Step 3: Create vaults
+  console.log('Step 3: Creating vaults...');
+  const trx2 = await this.createProjectVaults(
+    projectPda,
+    params.oldTokenMint,
+    params.newTokenMint,
+    params.oldTokenProgram,
+    params.newTokenProgram,
+  );
+
+  console.log('Project creation complete!');
+  return projectPda;
+}
+
+
 
 async  fetchPlatformConfig() {
     const [platformConfigPda] = findPlatformConfigPda(this.program.programId)

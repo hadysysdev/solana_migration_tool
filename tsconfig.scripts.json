@@ -5,11 +5,15 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "strict": false
+    "strict": false,
+    "resolveJsonModule": true
   },
   "include": [
     "contract_utils/w3swap_client_v2.ts",
-    "scripts/devnet_demo_meteora.ts", "scripts/init_platform_devnet.ts"
+    "scripts/devnet_demo_meteora.ts", "scripts/init_platform_devnet.ts",
+    "artifacts/w3swap.ts",
+    "contract_utils/utils.ts",
+    "contract_utils/manual-testing.ts"
   ],
   "exclude": [
     "contract_utils/w3swap_client.ts",
@@ -19,3 +23,5 @@
     "target"
   ]
 }
+
+

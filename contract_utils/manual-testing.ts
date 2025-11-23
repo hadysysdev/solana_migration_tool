@@ -317,8 +317,8 @@ async function main() {
   // await callManageProjectAdmin(new PublicKey('8YBJdbnwSM5LDu7L9rfHfp1fSnY9JFjUxnX9qgBzBQG1'), "add");
   
       // --- 3b. Fetch Platform Config ---
-  const config = await superAdminProgramClient.fetchPlatformConfig()
-  console.log("Fetched Platform Config:", JSON.stringify(config, null, 2));
+  // const config = await superAdminProgramClient.fetchPlatformConfig()
+  // console.log("Fetched Platform Config:", JSON.stringify(config, null, 2));
 
   // const projects = await fetchProjects()
   // console.log("Fetched Platform Config:", JSON.stringify(projects, null, 2));
@@ -347,8 +347,9 @@ async function main() {
       denylist: [],
     };
 
-    // await createProject(projectParams);
-    
+   const projectPDA =  await projectAdminProgramClient.createProject(projectParams);
+   const projectCreated = projectAdminProgramClient.fetchProject(projectPDA)
+   console.log("Fetched Project:", JSON.stringify(projectCreated, null, 2));
   // const projects = await fetchProjects()
   // console.log("Fetched Platform Config:", JSON.stringify(projects, null, 2));
 
