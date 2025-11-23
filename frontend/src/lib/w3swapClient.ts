@@ -13,6 +13,7 @@ export async function allocateProjectAccount(provider: AnchorProvider, projectId
     .allocateProjectAccount(new BN(projectId))
     .accounts({
       platformConfig,
+      payer: provider.wallet.publicKey,
       projectAdmin: provider.wallet.publicKey,
       project,
       systemProgram: SystemProgram.programId,

@@ -469,6 +469,102 @@ export type W3swap = {
       ]
     },
     {
+      "name": "allocateProjectAccount",
+      "docs": [
+        "Pre-allocate the project PDA to avoid Solana's 10KB reallocation limit"
+      ],
+      "discriminator": [
+        198,
+        123,
+        234,
+        139,
+        136,
+        8,
+        111,
+        13
+      ],
+      "accounts": [
+        {
+          "name": "platformConfig",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "projectAdmin",
+          "signer": true
+        },
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "projectAdmin"
+              },
+              {
+                "kind": "arg",
+                "path": "projectId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "projectId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "createProjectInit",
       "docs": [
         "Create project (step 1): initialize account and fields",
