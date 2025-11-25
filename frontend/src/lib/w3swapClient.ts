@@ -1,8 +1,38 @@
-import { AnchorProvider, BN, Program } from '@coral-xyz/anchor';
-import { PublicKey, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { AnchorProvider, BN } from '@coral-xyz/anchor';
+import { PublicKey, SystemProgram, LAMPORTS_PER_SOL, Transaction, VersionedTransaction } from '@solana/web3.js';
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
-import type { W3swap } from '../../../target/types/w3swap';
-import { getProgram, getProjectPDA } from './anchor';
+import { getConnection, getProjectPDA } from './anchor';
+import { getProgram } from './anchor';
+import type { useWalletUi } from '@wallet-ui/react';
+
+// Adapter to convert @wallet-ui/react account to AnchorProvider-compatible wallet
+export function createAnchorProviderFromWalletUi(
+  account: NonNullable<ReturnType<typeof useWalletUi>['account']>,
+  wallet: NonNullable<ReturnType<typeof useWalletUi>['wallet']>
+): AnchorProvider {
+  const connection = getConnection();
+  
+  // Create a wallet adapter that implements the required interface
+  const walletAdapter = {
+    publicKey: new PublicKey(account.address),
+    signTransaction: async (tx: Transaction | VersionedTransaction): Promise<Transaction | VersionedTransaction> => {
+      if (tx instanceof VersionedTransaction) {
+        // For versioned transactions, use the wallet's sign method
+        const signed = await (wallet as any).signTransaction(tx);
+        return signed;
+      } else {
+        // For legacy transactions, convert and sign
+        const signed = await (wallet as any).signTransaction(tx);
+        return signed;
+      }
+    },
+    signAllTransactions: async (txs: (Transaction | VersionedTransaction)[]): Promise<(Transaction | VersionedTransaction)[]> => {
+      return Promise.all(txs.map(tx => walletAdapter.signTransaction(tx)));
+    },
+  };
+
+  return new AnchorProvider(connection, walletAdapter as any, { commitment: 'confirmed' });
+}
 
 export type CreateProjectForm = {
   projectId?: number; // optional; default from timestamp
@@ -20,7 +50,12 @@ export type CreateProjectForm = {
   specialRatios: { address: string; oldAmount: number; newAmount: number }[];
 };
 
-export async function createProjectInitFromForm(provider: AnchorProvider, form: CreateProjectForm) {
+export async function createProjectInitFromForm(
+  account: NonNullable<ReturnType<typeof useWalletUi>['account']>,
+  wallet: NonNullable<ReturnType<typeof useWalletUi>['wallet']>,
+  form: CreateProjectForm
+) {
+  const provider = createAnchorProviderFromWalletUi(account, wallet);
   const program = getProgram(provider);
   const [platformConfig] = PublicKey.findProgramAddressSync([Buffer.from('platform_config')], program.programId);
   const projectId = form.projectId ?? Math.floor(Date.now() / 1000);
@@ -75,7 +110,12 @@ export async function createProjectInitFromForm(provider: AnchorProvider, form: 
     .rpc();
 }
 
-export async function createProjectVaults(provider: AnchorProvider, projectId: number) {
+export async function createProjectVaults(
+  account: NonNullable<ReturnType<typeof useWalletUi>['account']>,
+  wallet: NonNullable<ReturnType<typeof useWalletUi>['wallet']>,
+  projectId: number
+) {
+  const provider = createAnchorProviderFromWalletUi(account, wallet);
   const program = getProgram(provider);
   const [project] = getProjectPDA(provider.wallet.publicKey, projectId);
   const projectAcc = await program.account.project.fetch(project);
@@ -100,7 +140,13 @@ export async function createProjectVaults(provider: AnchorProvider, projectId: n
     .rpc();
 }
 
-export async function fundProject(provider: AnchorProvider, projectId: number, amountBaseUnits: string) {
+export async function fundProject(
+  account: NonNullable<ReturnType<typeof useWalletUi>['account']>,
+  wallet: NonNullable<ReturnType<typeof useWalletUi>['wallet']>,
+  projectId: number,
+  amountBaseUnits: string
+) {
+  const provider = createAnchorProviderFromWalletUi(account, wallet);
   const program = getProgram(provider);
   const [project] = getProjectPDA(provider.wallet.publicKey, projectId);
   const projectAcc = await program.account.project.fetch(project);
@@ -135,7 +181,12 @@ export type ActivateProjectParams = {
   lpMint: string;
 };
 
-export async function activateProject(provider: AnchorProvider, p: ActivateProjectParams) {
+export async function activateProject(
+  account: NonNullable<ReturnType<typeof useWalletUi>['account']>,
+  wallet: NonNullable<ReturnType<typeof useWalletUi>['wallet']>,
+  p: ActivateProjectParams
+) {
+  const provider = createAnchorProviderFromWalletUi(account, wallet);
   const program = getProgram(provider);
   const [project] = getProjectPDA(provider.wallet.publicKey, p.projectId);
   const projectAcc = await program.account.project.fetch(project);
@@ -166,3 +217,7 @@ export async function activateProject(provider: AnchorProvider, p: ActivateProje
     } as any)
     .rpc();
 }
+
+// Export aliases for backward compatibility
+export const fundProjectIx = fundProject;
+export const activateProjectIx = activateProject;

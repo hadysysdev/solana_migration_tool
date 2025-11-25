@@ -22,7 +22,7 @@ import {
   ScrollText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAnchorWallet, useWallet } from '@solana/wallet-adapter-react';
+import { useWalletUi } from '@wallet-ui/react';
 import { getConnection } from '@/lib/anchor';
 import { PublicKey, Keypair, SystemProgram, Transaction } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@/lib/constants';
@@ -77,8 +77,7 @@ interface TokenExtensions {
 }
 
 export default function CreateToken2022Page() {
-  const wallet = useAnchorWallet();
-  const { sendTransaction } = useWallet();
+  const { account, wallet } = useWalletUi();
   const [activeTab, setActiveTab] = useState('basic');
   const [isCreating, setIsCreating] = useState(false);
   const [tokenConfig, setTokenConfig] = useState({
@@ -264,7 +263,7 @@ export default function CreateToken2022Page() {
 
   // Prefill authorities with connected wallet when enabled
   useEffect(() => {
-    const pk = wallet?.publicKey?.toBase58();
+    const pk = account?.address;
     if (!pk) return;
     if (enableMintAuthority && !tokenConfig.mintAuthority) {
       setTokenConfig((prev) => ({ ...prev, mintAuthority: pk }));
@@ -272,7 +271,7 @@ export default function CreateToken2022Page() {
     if (enableFreezeAuthority && !tokenConfig.freezeAuthority) {
       setTokenConfig((prev) => ({ ...prev, freezeAuthority: pk }));
     }
-  }, [wallet?.publicKey?.toBase58(), enableMintAuthority, enableFreezeAuthority]);
+  }, [account?.address, enableMintAuthority, enableFreezeAuthority]);
 
   const metadataAuthorityOrDefault = (pk: PublicKey) => {
     try { return tokenConfig.metadataAuthority ? new PublicKey(tokenConfig.metadataAuthority) : pk; } catch { return pk; }
@@ -338,7 +337,7 @@ export default function CreateToken2022Page() {
   const pow10 = (d: number) => BigInt(10) ** BigInt(Math.max(0, Math.min(18, d)));
 
   const handleCreateToken = async () => {
-    if (!wallet?.publicKey) {
+    if (!account || !wallet) {
       toast.error('Connect your wallet to create a token');
       return;
     }
@@ -349,8 +348,9 @@ export default function CreateToken2022Page() {
       pushLog('Starting token creation...');
 
       const decimals = Number(tokenConfig.decimals) || 0;
-      const mintAuthority = tokenConfig.mintAuthority ? new PublicKey(tokenConfig.mintAuthority) : wallet.publicKey;
-      const freezeAuthority = tokenConfig.freezeAuthority ? new PublicKey(tokenConfig.freezeAuthority) : wallet.publicKey;
+      const walletPubkey = new PublicKey(account.address);
+      const mintAuthority = tokenConfig.mintAuthority ? new PublicKey(tokenConfig.mintAuthority) : walletPubkey;
+      const freezeAuthority = tokenConfig.freezeAuthority ? new PublicKey(tokenConfig.freezeAuthority) : walletPubkey;
 
       // Prepare metadata core fields early for sizing
       const name = metadata.name || '';
@@ -393,14 +393,14 @@ export default function CreateToken2022Page() {
 
       const fullTx = new Transaction();
       fullTx.add(SystemProgram.createAccount({
-        fromPubkey: wallet.publicKey!,
+        fromPubkey: walletPubkey,
         newAccountPubkey: mintKeypair.publicKey,
         space: spaceWithout,
         lamports,
         programId: TOKEN_2022_PROGRAM_ID,
       }));
 
-      const mdUpdateAuth = metadataAuthorityOrDefault(wallet.publicKey!);
+      const mdUpdateAuth = metadataAuthorityOrDefault(walletPubkey);
       pushLog(`Metadata update authority: ${mdUpdateAuth.toBase58()}`);
       fullTx.add(createInitializeMetadataPointerInstruction(
         mintKeypair.publicKey,
@@ -421,8 +421,8 @@ export default function CreateToken2022Page() {
         const feeBps = Number(extensions.transferFeeConfig?.feeBasisPoints || 0);
         const maxFee = Number(extensions.transferFeeConfig?.maxFee || 0);
         const maxFeeBig = BigInt(maxFee);
-        const tfa = new PublicKey(extensions.transferFeeConfig?.transferFeeAuthority || wallet.publicKey!);
-        const wwa = new PublicKey(extensions.transferFeeConfig?.withdrawAuthority || wallet.publicKey!);
+        const tfa = new PublicKey(extensions.transferFeeConfig?.transferFeeAuthority || account.address);
+        const wwa = new PublicKey(extensions.transferFeeConfig?.withdrawAuthority || account.address);
         fullTx.add(createInitializeTransferFeeConfigInstruction(
           mintKeypair.publicKey,
           tfa,
@@ -463,7 +463,7 @@ export default function CreateToken2022Page() {
 
       // Permanent Delegate
       if (extensions.permanentDelegate) {
-        const delegate = new PublicKey(extensions.permanentDelegateAddress || wallet.publicKey!);
+        const delegate = new PublicKey(extensions.permanentDelegateAddress || account.address);
         fullTx.add(createInitializePermanentDelegateInstruction(
           mintKeypair.publicKey,
           delegate,
@@ -501,7 +501,7 @@ export default function CreateToken2022Page() {
           ASSOCIATED_TOKEN_PROGRAM_ID,
         );
         fullTx.add(createAssociatedTokenAccountInstruction(
-          wallet.publicKey!,
+          walletPubkey,
           ata,
           mintAuthority,
           mintKeypair.publicKey,
@@ -520,15 +520,15 @@ export default function CreateToken2022Page() {
       }
 
       // Send single transaction
-      fullTx.feePayer = wallet.publicKey!;
+      fullTx.feePayer = walletPubkey;
       const { blockhash } = await connection.getLatestBlockhash();
       fullTx.recentBlockhash = blockhash;
       fullTx.partialSign(mintKeypair);
       pushLog('Submitting single transaction for mint + metadata...');
-      const txSig = await sendTransaction(fullTx, connection, { signers: [mintKeypair] });
+      const signedTx = await (wallet as any).signTransaction(fullTx);
+      const txSig = await connection.sendRawTransaction(signedTx.serialize());
+      await connection.confirmTransaction(txSig, 'confirmed');
       pushLog(`Submitted signature: ${txSig}`);
-      toast.success(`Token created: ${mintKeypair.publicKey.toBase58()}`);
-      return;
       toast.success(`Token created: ${mintKeypair.publicKey.toBase58()}`);
     } catch (e: any) {
       // eslint-disable-next-line no-console
@@ -577,8 +577,8 @@ export default function CreateToken2022Page() {
         <div className="w-64 shrink-0 relative">
           {/* Spacer to maintain layout flow */}
           <div className="h-0">
-            {/* Fixed sidebar - scrollable if needed */}
-            <div className="fixed top-[calc(64px+6rem+1.5rem)] left-[min(calc(256px+1.5rem),calc(100vw-18rem))] w-64 max-h-[calc(100vh-8rem)] overflow-y-auto z-20">
+            {/* Fixed sidebar overlays this space - aligns with card on right */}
+            <div className="fixed top-[calc(64px+6rem+1.5rem)] left-[calc(256px+1.5rem)] w-64 space-y-1 z-20">
               <div className="rounded-lg bg-surface border border-border p-2 backdrop-blur-sm bg-surface/95 shadow-lg flex flex-col">
                 <div className="space-y-1">
                   {[
@@ -834,8 +834,8 @@ export default function CreateToken2022Page() {
                         setEnableMintAuthority(e.target.checked);
                         if (!e.target.checked) {
                           setTokenConfig({ ...tokenConfig, mintAuthority: '' });
-                        } else if (!tokenConfig.mintAuthority && wallet?.publicKey) {
-                          setTokenConfig({ ...tokenConfig, mintAuthority: wallet.publicKey.toBase58() });
+                        } else if (!tokenConfig.mintAuthority && account) {
+                          setTokenConfig({ ...tokenConfig, mintAuthority: account.address });
                         }
                       }}
                       className="h-4 w-4 rounded border-2 border-border bg-surface-2 text-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 cursor-pointer"
@@ -856,7 +856,7 @@ export default function CreateToken2022Page() {
                     <Input
                       id="mintAuth"
                       type="text"
-                      placeholder={wallet?.publicKey?.toBase58() || "Wallet address"}
+                      placeholder={account?.address || "Wallet address"}
                       value={tokenConfig.mintAuthority}
                       onChange={(e) => setTokenConfig({ ...tokenConfig, mintAuthority: e.target.value })}
                       className="h-9 text-sm font-mono text-xs ml-6"
@@ -875,8 +875,8 @@ export default function CreateToken2022Page() {
                         setEnableFreezeAuthority(e.target.checked);
                         if (!e.target.checked) {
                           setTokenConfig({ ...tokenConfig, freezeAuthority: '' });
-                        } else if (!tokenConfig.freezeAuthority && wallet?.publicKey) {
-                          setTokenConfig({ ...tokenConfig, freezeAuthority: wallet.publicKey.toBase58() });
+                        } else if (!tokenConfig.freezeAuthority && account) {
+                          setTokenConfig({ ...tokenConfig, freezeAuthority: account.address });
                         }
                       }}
                       className="h-4 w-4 rounded border-2 border-border bg-surface-2 text-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 cursor-pointer"
@@ -897,7 +897,7 @@ export default function CreateToken2022Page() {
                     <Input
                       id="freezeAuth"
                       type="text"
-                      placeholder={wallet?.publicKey?.toBase58() || "Wallet address"}
+                      placeholder={account?.address || "Wallet address"}
                       value={tokenConfig.freezeAuthority}
                       onChange={(e) => setTokenConfig({ ...tokenConfig, freezeAuthority: e.target.value })}
                       className="h-9 text-sm font-mono text-xs ml-6"

@@ -23,7 +23,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useProjects, UiProject } from '@/lib/api';
-import { useAnchorWallet } from '@solana/wallet-adapter-react';
+import { useWalletUi } from '@wallet-ui/react';
 import { useIsPlatformAdmin } from '@/lib/roles';
 
 const statusConfig = {
@@ -37,7 +37,7 @@ export default function ProjectsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [mineOnly, setMineOnly] = useState<boolean>(false);
-  const wallet = useAnchorWallet();
+  const { account } = useWalletUi();
   const isPlatformAdmin = useIsPlatformAdmin();
   
   const { data: projects, isLoading, error } = useProjects();
@@ -48,7 +48,7 @@ export default function ProjectsPage() {
       String(project.projectId).toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
-    const matchesMine = !mineOnly || (wallet?.publicKey && project.projectAdmin === wallet.publicKey.toBase58());
+    const matchesMine = !mineOnly || (account && project.projectAdmin === account.address);
     
     return matchesSearch && matchesStatus && matchesMine;
   });
@@ -155,7 +155,7 @@ export default function ProjectsPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredProjects.map((project: UiProject) => {
             const status: any = (statusConfig as any)[project.status] || { label: project.status, color: 'default' };
-            const isMine = !!wallet?.publicKey && project.projectAdmin === wallet.publicKey.toBase58();
+            const isMine = !!account && project.projectAdmin === account.address;
             
             return (
               <Card key={`${project.projectId}:${project.projectAdmin}`} className="relative overflow-hidden hover:border-primary-500/50 transition-all">
@@ -217,7 +217,7 @@ export default function ProjectsPage() {
                       </Link>
                     </Button>
                     {project.status === 'Created' && (
-                      <Button size="sm" variant="gradient">
+                      <Button size="sm" className="btn-brand">
                         <Play className="mr-2 h-4 w-4" />
                         Activate
                       </Button>

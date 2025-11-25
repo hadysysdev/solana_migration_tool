@@ -15,7 +15,8 @@ import {
   Activity,
   FileText,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  Camera
 } from 'lucide-react';
 
 const navigation = [
@@ -39,6 +40,11 @@ const navigation = [
     name: 'Token Creation',
     href: '/admin/token/create',
     icon: Coins,
+  },
+  {
+    name: 'Token Snapshot',
+    href: '/admin/snapshot',
+    icon: Camera,
   },
   {
     name: 'Migrations',

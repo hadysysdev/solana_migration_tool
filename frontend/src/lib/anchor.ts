@@ -26,7 +26,7 @@ export interface Project {
   activatedAt?: number;
 }
 export enum ProjectStatus { Created = 'Created', Active = 'Active', Completed = 'Completed', Cancelled = 'Cancelled' }
-export type UserMigration = unknown;
+export type UserMigration = any; // TODO: Define proper type based on IDL
 
 // Initialize connection
 export const getConnection = () => {

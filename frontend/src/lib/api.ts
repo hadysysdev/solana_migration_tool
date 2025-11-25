@@ -1,6 +1,7 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
-import { getConnection, Project } from './anchor';
+import { getConnection, Project, UserMigration } from './anchor';
+import { W3SWAP_PROGRAM_ID } from './constants';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
@@ -9,6 +10,9 @@ type Row = any;
 
 // API service for interacting with the W3Swap contract
 export class W3SwapAPI {
+  private get connection() {
+    return getConnection();
+  }
   // Backend-backed fetches
   async fetchProjects(): Promise<Project[]> {
     try {
@@ -119,10 +123,8 @@ export class W3SwapAPI {
       const migrations: UserMigration[] = [];
       for (const account of accounts) {
         try {
-          const migration = this.parseUserMigrationAccount(account.account.data);
-          if (migration) {
-            migrations.push(migration);
-          }
+          // Placeholder - would need actual parsing logic
+          migrations.push(account as any);
         } catch (error) {
           console.error('Error parsing user migration account:', error);
         }
@@ -132,60 +134,6 @@ export class W3SwapAPI {
     } catch (error) {
       console.error('Error fetching user migration history:', error);
       return [];
-    }
-  }
-
-  // Parse project account data
-  private parseProjectAccount(data: Buffer, pubkey: PublicKey): Project | null {
-    try {
-      // TODO: Implement actual parsing based on the contract's account structure
-      // This is a placeholder implementation
-      
-      // For now, return null since we don't have the actual account structure
-      // Once we have the IDL, we can properly deserialize the account data
-      return null;
-      
-      /*
-      Example implementation when we have the IDL:
-      
-      const reader = new BinaryReader(data);
-      const discriminator = reader.readBytes(8);
-      
-      if (!this.isProjectDiscriminator(discriminator)) {
-        return null;
-      }
-      
-      return {
-        id: pubkey,
-        creator: new PublicKey(reader.readBytes(32)),
-        oldTokenMint: new PublicKey(reader.readBytes(32)),
-        newTokenMint: new PublicKey(reader.readBytes(32)),
-        exchangeRateOld: reader.readU64(),
-        exchangeRateNew: reader.readU64(),
-        startTime: reader.readI64(),
-        endTime: reader.readI64(),
-        status: this.parseProjectStatus(reader.readU8()),
-        totalMigrated: reader.readU64(),
-        totalUsers: reader.readU32(),
-        createdAt: reader.readI64(),
-        activatedAt: reader.hasMore() ? reader.readI64() : undefined,
-      };
-      */
-    } catch (error) {
-      console.error('Error parsing project account:', error);
-      return null;
-    }
-  }
-
-  // Parse user migration account data
-  private parseUserMigrationAccount(data: Buffer): UserMigration | null {
-    try {
-      // TODO: Implement actual parsing based on the contract's account structure
-      // This is a placeholder implementation
-      return null;
-    } catch (error) {
-      console.error('Error parsing user migration account:', error);
-      return null;
     }
   }
 
@@ -282,3 +230,6 @@ export const useTokenMetadata = (mintAddress: PublicKey) => {
     staleTime: 300000, // 5 minutes - metadata doesn't change often
   });
 };
+
+// Export type for use in components
+export type UiProject = Project;
