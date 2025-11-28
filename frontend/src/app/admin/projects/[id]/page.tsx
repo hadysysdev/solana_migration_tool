@@ -2,14 +2,15 @@
 
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useProject, useProjectEvents, useProjectAnalytics } from '@/lib/api';
+import { usefetchProject } from '@/lib/api';
+import { BN } from '@coral-xyz/anchor';
 
 export default function ProjectDetailPage() {
   const params = useParams<{ id: string }>();
   const numericId = Number(params.id);
-  const { data: project, isLoading } = useProject(numericId);
-  const { data: events } = useProjectEvents(numericId);
-  const { data: analytics } = useProjectAnalytics(numericId, 30);
+  const { data: project, isLoading } = usefetchProject(new BN(numericId));
+  // const { data: events } = useProjectEvents(numericId);
+  // const { data: analytics } = useProjectAnalytics(numericId, 30);
 
   if (isLoading) return <div className="p-6">Loading…</div>;
   if (!project) return <div className="p-6">Project not found.</div>;
@@ -20,7 +21,7 @@ export default function ProjectDetailPage() {
         <CardHeader>
           <CardTitle>Analytics (30d)</CardTitle>
         </CardHeader>
-        <CardContent className="grid md:grid-cols-3 gap-4 text-sm">
+        {/* <CardContent className="grid md:grid-cols-3 gap-4 text-sm">
           <div>
             <div className="text-foreground-muted">Total Migrated</div>
             <div className="font-semibold">{analytics?.total_migrated ?? 0}</div>
@@ -33,7 +34,7 @@ export default function ProjectDetailPage() {
             <div className="text-foreground-muted">Events</div>
             <div className="font-semibold">{analytics ? Object.values(analytics.event_counts || {}).reduce((a: any,b: any)=> (a as number) + (b as number), 0) : 0}</div>
           </div>
-        </CardContent>
+        </CardContent> */}
       </Card>
 
       <Card>
@@ -44,7 +45,7 @@ export default function ProjectDetailPage() {
           <div>Status: <span className="font-semibold">{project.status}</span></div>
           <div>Old Mint: <span className="font-mono">{project.oldTokenMint.toString()}</span></div>
           <div>New Mint: <span className="font-mono">{project.newTokenMint.toString()}</span></div>
-          <div>Totals: migrated {project.totalMigrated ?? 0}, users {project.totalUsers ?? 0}</div>
+          <div>Totals: migrated {project.totalOldMigrated?.toString() ?? '0'}, users {project.totalNewDistributed?.toString() ?? '0'}</div>
         </CardContent>
       </Card>
 
@@ -52,7 +53,7 @@ export default function ProjectDetailPage() {
         <CardHeader>
           <CardTitle>Recent Events</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        {/* <CardContent className="space-y-3">
           {(events || []).slice(0, 20).map((e: any, idx: number) => (
             <div key={idx} className="text-xs border-b border-border pb-2">
               <div className="font-semibold">{e.event_name}</div>
@@ -60,7 +61,7 @@ export default function ProjectDetailPage() {
             </div>
           ))}
           {(!events || events.length === 0) && <div className="text-xs text-foreground-muted">No events yet.</div>}
-        </CardContent>
+        </CardContent> */}
       </Card>
     </div>
   );

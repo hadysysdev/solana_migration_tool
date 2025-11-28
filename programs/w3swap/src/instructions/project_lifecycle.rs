@@ -165,7 +165,9 @@ pub struct FundProject<'info> {
     pub new_token_program: Interface<'info, TokenInterface>,
 }
 
-/// Activate a project for migrations and create initial LP
+
+
+/// Activate a project for migrations (Step 3: Activation)
 #[derive(Accounts)]
 pub struct ActivateProject<'info> {
     #[account(
@@ -173,7 +175,8 @@ pub struct ActivateProject<'info> {
         seeds = [b"project", project_admin.key().as_ref(), project.project_id.to_le_bytes().as_ref()],
         bump = project.bump,
         has_one = project_admin @ W3SwapError::NotProjectAdmin,
-        constraint = project.status == ProjectStatus::Funded @ W3SwapError::InvalidProjectStatus
+        constraint = project.status == ProjectStatus::Funded @ W3SwapError::InvalidProjectStatus,
+        constraint = project.lp_created == true @ W3SwapError::ProjectNotReady // Ensure LP is created
     )]
     pub project: Account<'info, Project>,
 
@@ -183,42 +186,8 @@ pub struct ActivateProject<'info> {
     )]
     pub new_token_vault: InterfaceAccount<'info, TokenAccount>,
 
-    /// CHECK: Liquidity vault PDA holding committed SOL
-    #[account(
-        mut,
-        seeds = [b"liquidity_vault", project.key().as_ref()],
-        bump
-    )]
-    pub liquidity_vault: UncheckedAccount<'info>,
-
-    #[account(
-        init_if_needed,
-        payer = project_admin,
-        token::mint = lp_mint,
-        token::authority = project,
-        token::token_program = token_program,
-        seeds = [b"lp_escrow_vault", project.key().as_ref()],
-        bump
-    )]
-    pub lp_escrow_vault: InterfaceAccount<'info, TokenAccount>,
-
-    /// CHECK: Meteora DLMM pool to be created
-    #[account(mut)]
-    pub meteora_pool: UncheckedAccount<'info>,
-
-    /// CHECK: LP token mint from Meteora position
-    pub lp_mint: UncheckedAccount<'info>,
-
-    pub new_token_mint: InterfaceAccount<'info, Mint>,
-    pub new_token_program: Interface<'info, TokenInterface>,
-    pub token_program: Interface<'info, TokenInterface>,
-
     #[account(mut)]
     pub project_admin: Signer<'info>,
-
-    /// CHECK: Meteora DLMM program
-    pub meteora_program: UncheckedAccount<'info>,
-    pub system_program: Program<'info, System>,
 }
 
 /// Pause a project temporarily
@@ -358,84 +327,181 @@ pub struct FinalizeProjectTransfers<'info> {
 
 /// Pre-allocate the project PDA account with full space
 /// This is required before calling create_project_init to avoid Solana's
-/// 10,240 byte reallocation limit for inner instructions. By manually
-/// issuing the system program create instruction here we ensure the account
-/// reaches its full size in a dedicated top-level instruction and never
-/// relies on Anchor's `init` constraint (which would try to reallocate
-/// inside another instruction).
+/// 10,240 byte reallocation limit for inner instructions.
 pub fn allocate_project_account(
     ctx: Context<AllocateProjectAccount>,
     project_id: u64,
 ) -> Result<()> {
     let project_info = ctx.accounts.project.to_account_info();
 
-    // If the project was already allocated we simply verify ownership/size
-    // and allow the call to succeed. This makes the instruction idempotent
-    // for clients that retry transactions.
+    // If the project was already allocated we simply verify ownership
+    // and allow the call to succeed. This makes the instruction idempotent.
     if *project_info.owner == crate::ID {
-        require_eq!(
-            project_info.data_len(),
-            Project::LEN,
+        let data = project_info.try_borrow_data()?;
+        if data.len() >= 16 {
+            let discriminator: [u8; 8] = data[..8].try_into().unwrap();
+            let stored_project_id_bytes: [u8; 8] = data[8..16].try_into().unwrap();
+            let stored_project_id = u64::from_le_bytes(stored_project_id_bytes);
+            
+            // Check if discriminator is set AND project_id matches
+            if discriminator != [0; 8] && stored_project_id == project_id {
+                return Ok(());
+            }
+        }
+    } else {
+        // Only do system create_account if it's not already owned by us
+        require_keys_eq!(
+            *project_info.owner,
+            System::id(),
             W3SwapError::InvalidAccountOwner
         );
+        require_eq!(
+            project_info.lamports(),
+            0,
+            W3SwapError::ProjectAlreadyAllocated
+        );
+        require_eq!(
+            project_info.data_len(),
+            0,
+            W3SwapError::ProjectAlreadyAllocated
+        );
+
+        // Allocate only 10KB initially to avoid CPI limit
+        let space = 10240u64;
+        let rent_lamports = ctx.accounts.rent.minimum_balance(space as usize);
+
+        let project_id_bytes = project_id.to_le_bytes();
+        let bump_bytes = [ctx.bumps.project];
+        let project_admin_key = ctx.accounts.project_admin.key();
+        let signer_seeds: &[&[u8]] = &[
+            b"project",
+            project_admin_key.as_ref(),
+            &project_id_bytes,
+            &bump_bytes,
+        ];
+
+        // Manually invoke the system program
+        invoke_signed(
+            &system_instruction::create_account(
+                &ctx.accounts.payer.key(),
+                &ctx.accounts.project.key(),
+                rent_lamports,
+                space,
+                &crate::ID,
+            ),
+            &[
+                ctx.accounts.payer.to_account_info(),
+                project_info.clone(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+            &[signer_seeds],
+        )?;
+    }
+
+    let mut data = project_info.try_borrow_mut_data()?;
+    
+    // Initialize header fields using a struct to ensure type safety
+    // We cannot serialize the full Project struct yet as it won't fit
+    let header = ProjectHeader {
+        discriminator: Project::DISCRIMINATOR.try_into().unwrap(),
+        project_id,
+        project_admin: ctx.accounts.project_admin.key(),
+    };
+
+    // Serialize header into the beginning of the account data
+    let mut writer = &mut data[..];
+    header.serialize(&mut writer)?;
+
+    // We do NOT write the bump yet as it's at the end of the struct
+    
+    Ok(())
+}
+
+/// Helper struct to ensure type safety when writing the initial project header
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct ProjectHeader {
+    pub discriminator: [u8; 8],
+    pub project_id: u64,
+    pub project_admin: Pubkey,
+}
+
+/// Expand the project PDA account size (step 1.5)
+/// Must be called repeatedly until full size is reached
+#[derive(Accounts)]
+pub struct ExpandProjectAccount<'info> {
+    /// CHECK: We manually verify seeds and owner because we are expanding it
+    #[account(mut)]
+    pub project: UncheckedAccount<'info>,
+
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    pub project_admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+pub fn expand_project_account(ctx: Context<ExpandProjectAccount>) -> Result<()> {
+    let project_info = ctx.accounts.project.to_account_info();
+    
+    // Manual verification since we use UncheckedAccount
+    require_keys_eq!(*project_info.owner, crate::ID, W3SwapError::InvalidAccountOwner);
+
+    // Verify seeds
+    // We need to read project_id from the account data to verify seeds
+    let data = project_info.try_borrow_data()?;
+    if data.len() < 16 {
+        return Err(W3SwapError::InvalidInstructionData.into());
+    }
+    let stored_project_id_bytes: [u8; 8] = data[8..16].try_into().unwrap();
+    // stored_project_id is not needed for seeds, only bytes
+
+    let project_admin_key = ctx.accounts.project_admin.key();
+    let seeds = &[
+        b"project",
+        project_admin_key.as_ref(),
+        &stored_project_id_bytes,
+    ];
+    let (pda, bump) = Pubkey::find_program_address(seeds, &crate::ID);
+    require_keys_eq!(pda, ctx.accounts.project.key(), W3SwapError::InvalidAccountOwner);
+
+    drop(data); // Release borrow
+
+    let current_len = project_info.data_len();
+    let target_len = Project::LEN;
+
+    if current_len >= target_len {
         return Ok(());
     }
 
-    require_keys_eq!(
-        *project_info.owner,
-        System::id(),
-        W3SwapError::InvalidAccountOwner
-    );
-    require_eq!(
-        project_info.lamports(),
-        0,
-        W3SwapError::ProjectAlreadyAllocated
-    );
-    require_eq!(
-        project_info.data_len(),
-        0,
-        W3SwapError::ProjectAlreadyAllocated
-    );
+    // Expand by up to 10240 bytes
+    let increase = std::cmp::min(10240, target_len - current_len);
+    let new_len = current_len + increase;
 
-    let declared_space = Project::LEN;
-    let runtime_struct = 8 + core::mem::size_of::<Project>();
-    require!(
-        declared_space >= runtime_struct,
-        W3SwapError::InvalidInstructionData
-    );
-    let rent_lamports = ctx.accounts.rent.minimum_balance(declared_space);
-    let space = declared_space as u64;
+    // Calculate additional rent needed
+    let rent = Rent::get()?;
+    let new_minimum_balance = rent.minimum_balance(new_len);
+    let current_lamports = project_info.lamports();
+    
+    if new_minimum_balance > current_lamports {
+        let diff = new_minimum_balance - current_lamports;
+        transfer_sol(
+            &ctx.accounts.payer.to_account_info(),
+            &project_info,
+            &ctx.accounts.system_program,
+            diff,
+        )?;
+    }
 
-    let project_id_bytes = project_id.to_le_bytes();
-    let bump_bytes = [ctx.bumps.project];
-    let project_admin_key = ctx.accounts.project_admin.key();
-    let signer_seeds: &[&[u8]] = &[
-        b"project",
-        project_admin_key.as_ref(),
-        &project_id_bytes,
-        &bump_bytes,
-    ];
+    // Resize
+    project_info.resize(new_len)?;
 
-    // Manually invoke the system program so no realloc CPI occurs.
-    invoke_signed(
-        &system_instruction::create_account(
-            &ctx.accounts.payer.key(),
-            &ctx.accounts.project.key(),
-            rent_lamports,
-            space,
-            &crate::ID,
-        ),
-        &[
-            ctx.accounts.payer.to_account_info(),
-            project_info.clone(),
-            ctx.accounts.system_program.to_account_info(),
-        ],
-        &[signer_seeds],
-    )?;
-
-    let mut data = project_info.try_borrow_mut_data()?;
-    let discriminator: [u8; 8] = [205, 168, 189, 202, 181, 247, 142, 19];
-    data[..8].copy_from_slice(&discriminator);
+    // If we reached target size, write the bump at the end
+    if new_len == target_len {
+        let mut data = project_info.try_borrow_mut_data()?;
+        // Bump is the last byte
+        let last_idx = target_len - 1;
+        data[last_idx] = bump;
+    }
 
     Ok(())
 }
@@ -644,12 +710,15 @@ pub fn fund_project(ctx: Context<FundProject>, amount: u64) -> Result<()> {
     Ok(())
 }
 
-/// Activate a project for migrations and create initial LP
-pub fn activate_project(ctx: Context<ActivateProject>, lp_config: LpConfiguration) -> Result<()> {
+
+
+/// Activate a project for migrations
+pub fn activate_project(ctx: Context<ActivateProject>) -> Result<()> {
     let now = current_timestamp();
+    let project = &mut ctx.accounts.project;
 
     // Check if project start time has passed
-    if now < ctx.accounts.project.migration_start {
+    if now < project.migration_start {
         return Err(W3SwapError::ProjectNotReady.into());
     }
 
@@ -658,31 +727,12 @@ pub fn activate_project(ctx: Context<ActivateProject>, lp_config: LpConfiguratio
         return Err(W3SwapError::ProjectNotFunded.into());
     }
 
-    // Validate LP configuration
-    validate_lp_configuration(&lp_config)?;
-
-    // Check if liquidity vault has sufficient SOL for LP creation
-    let liquidity_vault_balance = ctx.accounts.liquidity_vault.lamports();
-    if liquidity_vault_balance == 0 {
-        return Err(W3SwapError::InsufficientSolForProtection.into());
-    }
-
     // Validate that we're activating at the right time
-    if now > ctx.accounts.project.migration_end {
+    if now > project.migration_end {
         return Err(W3SwapError::MigrationPeriodEnded.into());
     }
 
-    // Create Meteora DLMM pool and add initial liquidity first (placeholder)
-    // Off-chain CPI integration should replace this. For now, simulate by
-    // moving new tokens to LP escrow; keep SOL untouched in liquidity_vault.
-    create_meteora_pool_and_add_liquidity(&ctx, &lp_config, 0)?;
-
-    // Now update project state
-    let project = &mut ctx.accounts.project;
     let old_status = project.status.clone();
-
-    // Store LP configuration
-    project.lp_config = Some(lp_config.clone());
 
     // Update project status and timing
     project.status = ProjectStatus::Active;
@@ -690,25 +740,12 @@ pub fn activate_project(ctx: Context<ActivateProject>, lp_config: LpConfiguratio
     // Recalculate end time based on actual activation: activated_at + duration
     project.migration_end = now + project.migration_duration;
 
-    project.lp_created = true;
-    project.lp_lock_end = 0; // Will be set after settlement completes
-    project.meteora_pool = ctx.accounts.meteora_pool.key();
-    project.lp_escrow_vault = ctx.accounts.lp_escrow_vault.key();
-    project.lp_tokens_deposited = lp_config.token_allocation; // Placeholder
-
     emit!(ProjectStatusChanged {
         project_id: project.project_id,
         project_admin: project.project_admin,
         project_pda: project.key(),
         old_status,
         new_status: ProjectStatus::Active,
-        timestamp: now,
-    });
-
-    emit!(LpCreated {
-        project_id: project.project_id,
-        project_admin: project.project_admin,
-        project_pda: project.key(),
         timestamp: now,
     });
 
@@ -989,88 +1026,4 @@ pub fn close_project_accounts(ctx: Context<CloseProjectAccounts>) -> Result<()> 
     Ok(())
 }
 
-/// Validate LP configuration parameters
-fn validate_lp_configuration(config: &LpConfiguration) -> Result<()> {
-    // Validate token allocation is not zero
-    if config.token_allocation == 0 {
-        return Err(W3SwapError::AmountIsZero.into());
-    }
 
-    // Validate initial price is not zero
-    if config.initial_price == 0 {
-        return Err(W3SwapError::AmountIsZero.into());
-    }
-
-    // Validate price range
-    if config.price_range_min >= config.price_range_max {
-        return Err(W3SwapError::InvalidExchangeRatio.into());
-    }
-
-    // Validate bin step (common values: 10, 20, 50, 100)
-    if config.bin_step == 0 || config.bin_step > 1000 {
-        return Err(W3SwapError::InvalidExchangeRatio.into());
-    }
-
-    // Validate base fee (should be reasonable, e.g., 1-1000 bps)
-    if config.base_fee > 1000 {
-        return Err(W3SwapError::InvalidExchangeRatio.into());
-    }
-
-    Ok(())
-}
-
-/// Create Meteora DLMM pool and add initial liquidity
-/// This is a placeholder implementation. In production, this would use
-/// proper CPI calls to the Meteora DLMM program
-fn create_meteora_pool_and_add_liquidity(
-    ctx: &Context<ActivateProject>,
-    lp_config: &LpConfiguration,
-    _sol_amount: u64,
-) -> Result<()> {
-    // TODO: Implement actual Meteora DLMM integration
-    // This would involve:
-    // 1. Creating the DLMM pool with specified parameters
-    // 2. Adding initial liquidity with SOL + new tokens
-    // 3. Receiving LP tokens
-    // 4. Depositing LP tokens to escrow vault
-
-    msg!("Creating Meteora DLMM pool with config: initial_price={}, token_allocation={}, bin_step={}, base_fee={}",
-         lp_config.initial_price,
-         lp_config.token_allocation,
-         lp_config.bin_step,
-         lp_config.base_fee);
-
-    // For now, we'll simulate the process
-    // In production, replace this with actual Meteora CPI calls
-
-    // Transfer tokens from new_token_vault for LP
-    let project = &ctx.accounts.project;
-    let project_seeds = project_seeds(&project.project_admin, project.project_id);
-    let mut project_seed_refs: Vec<&[u8]> = project_seeds.iter().map(|s| s.as_slice()).collect();
-    let bump_slice = [project.bump];
-    project_seed_refs.push(&bump_slice);
-    let project_signer_seeds = &[project_seed_refs.as_slice()];
-
-    // Transfer tokens from vault (this would be part of Meteora CPI)
-    transfer_tokens_checked(
-        &ctx.accounts.new_token_vault,
-        &ctx.accounts.lp_escrow_vault, // Temporary: should go to Meteora, then LP tokens back
-        &ctx.accounts.new_token_mint,
-        &project.to_account_info(),
-        &ctx.accounts.new_token_program,
-        lp_config.token_allocation,
-        ctx.accounts.new_token_mint.decimals,
-        Some(project_signer_seeds),
-    )?;
-
-    // Note: In actual implementation, SOL would be provided to LP program,
-    // and we'd receive LP tokens back to deposit in escrow. We avoid
-    // manipulating lamports here in the placeholder.
-
-    // Update project state (will be done by the caller)
-    // project.lp_tokens_deposited = lp_config.token_allocation; // Placeholder
-
-    msg!("LP creation simulated successfully");
-
-    Ok(())
-}

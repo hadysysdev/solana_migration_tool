@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { 
+import {
   Search,
   Filter,
   ArrowRight,
@@ -22,7 +22,7 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
-import { useProjects, UiProject } from '@/lib/api';
+import { useFetchProjects } from '@/lib/api';
 import { useAnchorWallet } from '@solana/wallet-adapter-react';
 import { useIsPlatformAdmin } from '@/lib/roles';
 
@@ -39,17 +39,20 @@ export default function ProjectsPage() {
   const [mineOnly, setMineOnly] = useState<boolean>(false);
   const wallet = useAnchorWallet();
   const isPlatformAdmin = useIsPlatformAdmin();
-  
-  const { data: projects, isLoading, error } = useProjects();
 
-  const filteredProjects = (projects || []).filter((project: UiProject) => {
+  const { data: projects, isLoading, error } = useFetchProjects();
+
+  const filteredProjects = (projects || []).filter((project) => {
+    // Safety check for project.account
+    if (!project?.account) return false;
+
     // TODO: Add token symbol lookup when we have metadata
-    const matchesSearch = searchTerm === '' || 
-      String(project.projectId).toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
-    const matchesMine = !mineOnly || (wallet?.publicKey && project.projectAdmin === wallet.publicKey.toBase58());
-    
+    const matchesSearch = searchTerm === '' ||
+      String(project.account.projectId || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus = statusFilter === 'all' || project.account.status === statusFilter;
+    const matchesMine = !mineOnly || (wallet?.publicKey && project.account.projectAdmin?.toString() === wallet.publicKey.toString());
+
     return matchesSearch && matchesStatus && matchesMine;
   });
 
@@ -153,20 +156,21 @@ export default function ProjectsPage() {
         </Card>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredProjects.map((project: UiProject) => {
-            const status: any = (statusConfig as any)[project.status] || { label: project.status, color: 'default' };
-            const isMine = !!wallet?.publicKey && project.projectAdmin === wallet.publicKey.toBase58();
-            
+          {filteredProjects.map((project) => {
+            if (!project?.account) return null;
+            const status: any = (statusConfig as any)[project.account.status] || { label: project.account.status || 'Unknown', color: 'default' };
+            const isMine = !!wallet?.publicKey && project.account.projectAdmin?.toString() === wallet.publicKey.toString();
+
             return (
-              <Card key={`${project.projectId}:${project.projectAdmin}`} className="relative overflow-hidden hover:border-primary-500/50 transition-all">
+              <Card key={`${project.account.projectId}:${project.account.projectAdmin}`} className="relative overflow-hidden hover:border-primary-500/50 transition-all">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <CardTitle className="text-xl">
-                        Project #{String(project.projectId)}
+                        Project #{String(project.account.projectId || 'Unknown')}
                       </CardTitle>
                       <CardDescription>
-                        {project.oldTokenMint.toString().slice(0, 8)}... → {project.newTokenMint.toString().slice(0, 8)}...
+                        {project.account.oldTokenMint?.toString().slice(0, 8) || '???'}... → {project.account.newTokenMint?.toString().slice(0, 8) || '???'}...
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
@@ -184,20 +188,20 @@ export default function ProjectsPage() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-foreground-muted">Total Migrated</p>
-                      <p className="font-semibold">{(project.totalMigrated || 0).toLocaleString()}</p>
+                      <p className="font-semibold">{(project.account.totalOldMigrated?.toString() || '0').toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-foreground-muted">Users</p>
-                      <p className="font-semibold">{project.totalUsers || 0}</p>
+                      <p className="font-semibold">{project.account.totalNewDistributed?.toString() || '0'}</p>
                     </div>
                     <div>
                       <p className="text-foreground-muted">Exchange Rate</p>
-                      <p className="font-semibold">{project.exchangeRateOld ?? 0}:{project.exchangeRateNew ?? 0}</p>
+                      <p className="font-semibold">{project.account.exchangeRatioDenominator?.toString() ?? '0'}:{project.account.exchangeRatioNumerator?.toString() ?? '0'}</p>
                     </div>
                     <div>
                       <p className="text-foreground-muted">Created</p>
                       <p className="font-semibold">
-                        {project.createdAt ? new Date(project.createdAt * 1000).toLocaleDateString() : '—'}
+                        {project.account.migrationStart ? new Date(Number(project.account.migrationStart.toString()) * 1000).toLocaleDateString() : '—'}
                       </p>
                     </div>
                   </div>
@@ -205,18 +209,18 @@ export default function ProjectsPage() {
                   {/* Actions */}
                   <div className="flex gap-2">
                     <Button asChild variant="outline" size="sm" className="flex-1">
-                      <Link href={`/admin/projects/${project.projectId}`}>
+                      <Link href={`/admin/projects/${project.account.projectId}`}>
                         <Eye className="mr-2 h-4 w-4" />
                         View
                       </Link>
                     </Button>
                     <Button asChild variant="outline" size="sm" className="flex-1">
-                      <Link href={`/admin/projects/${project.projectId}/edit`}>
+                      <Link href={`/admin/projects/${project.account.projectId}/edit`}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
                       </Link>
                     </Button>
-                    {project.status === 'Created' && (
+                    {project.account.status === 'Created' && (
                       <Button size="sm" variant="gradient">
                         <Play className="mr-2 h-4 w-4" />
                         Activate

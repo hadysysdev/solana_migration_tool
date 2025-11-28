@@ -404,6 +404,15 @@ pub enum SwapBackend {
     Jupiter,
 }
 
+/// Pool type selection for LP creation
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PoolType {
+    MeteoraDlmm,
+    // Future support:
+    // OrcaWhirlpool,
+    // RaydiumAmm,
+}
+
 /// Project status enumeration
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub enum ProjectStatus {
@@ -507,6 +516,18 @@ pub struct LpConfiguration {
     /// Price range for concentrated liquidity
     pub price_range_min: u64, // Scaled by 1e9
     pub price_range_max: u64, // Scaled by 1e9
+
+    /// Initial active bin ID (calculated off-chain from price)
+    pub initial_active_id: i32,
+
+    /// Activation type (0 = Slot, 1 = Timestamp)
+    pub activation_type: u8,
+
+    /// Activation point (slot or timestamp)
+    pub activation_point: u64,
+
+    /// Enable alpha vault
+    pub has_alpha_vault: bool,
 }
 
 /// User migration record PDA
@@ -554,5 +575,90 @@ mod tests {
     fn project_len_covers_runtime_struct() {
         let runtime = 8 + core::mem::size_of::<Project>();
         assert!(Project::LEN >= runtime);
+    }
+
+    #[test]
+    fn test_project_offsets() {
+        // Verify that project_id is at offset 8 (after discriminator)
+        // and project_admin is at offset 16 (after project_id)
+        // This ensures that our partial serialization in allocate_project_account is safe
+        
+        // We can't easily check offsets of fields in Rust without unsafe or mem::transmute tricks
+        // or by serializing a dummy struct. Let's use serialization.
+        
+        let dummy_pubkey = Pubkey::new_unique();
+        let project = Project {
+            project_id: 0x1234567890ABCDEF,
+            project_admin: dummy_pubkey,
+            // Fill rest with defaults/zeros
+            old_token_mint: Pubkey::default(),
+            new_token_mint: Pubkey::default(),
+            old_token_program: Pubkey::default(),
+            new_token_program: Pubkey::default(),
+            old_token_vault: Pubkey::default(),
+            new_token_vault: Pubkey::default(),
+            liquidity_vault: Pubkey::default(),
+            wsol_vault: Pubkey::default(),
+            lp_escrow_vault: Pubkey::default(),
+            status: ProjectStatus::Created,
+            migration_start: 0,
+            migration_end: 0,
+            migration_duration: 0,
+            total_pause_duration: 0,
+            last_pause_start: 0,
+            activated_at: 0,
+            exchange_ratio_numerator: 0,
+            exchange_ratio_denominator: 0,
+            auto_pause_threshold_percent: 0,
+            project_name: "".to_string(),
+            total_old_migrated: 0,
+            total_new_distributed: 0,
+            total_sol_committed: 0,
+            lp_created: false,
+            lp_tokens_deposited: 0,
+            lp_lock_end: 0,
+            meteora_pool: Pubkey::default(),
+            lp_config: None,
+            special_ratio_enabled: false,
+            special_ratio_wallets: vec![],
+            allowlist_enabled: false,
+            denylist_enabled: false,
+            allowlist: None,
+            denylist: None,
+            total_old_sold: 0,
+            total_wsol_received: 0,
+            liquidation_backend: None,
+            last_liquidation_slot: 0,
+            liquidation_in_progress: false,
+            bump: 0,
+        };
+        
+        let mut data = Vec::new();
+        // Anchor accounts have an 8-byte discriminator that is NOT part of the struct fields
+        // when using #[account]. However, when we serialize the struct manually (if it derived AnchorSerialize),
+        // it wouldn't include the discriminator unless we added it.
+        // But Project uses #[account], so `try_to_vec` might behave differently depending on context.
+        // Actually, #[account] implements AnchorSerialize/Deserialize which DOES NOT include the discriminator.
+        // The discriminator is handled by the Account wrapper.
+        
+        project.serialize(&mut data).unwrap();
+        
+        // In the serialized data of the STRUCT (without account discriminator):
+        // offset 0 should be project_id (u64)
+        // offset 8 should be project_admin (Pubkey)
+        
+        let id_bytes: [u8; 8] = data[0..8].try_into().unwrap();
+        let id = u64::from_le_bytes(id_bytes);
+        assert_eq!(id, 0x1234567890ABCDEF);
+        
+        let admin_bytes: [u8; 32] = data[8..40].try_into().unwrap();
+        let admin = Pubkey::new_from_array(admin_bytes);
+        assert_eq!(admin, dummy_pubkey);
+        
+        // This confirms that:
+        // Account Data [0..8] = Discriminator
+        // Account Data [8..16] = project_id
+        // Account Data [16..48] = project_admin
+        // Which matches our manual writing in allocate_project_account
     }
 }

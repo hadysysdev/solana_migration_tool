@@ -18,13 +18,14 @@ pub struct Migrate<'info> {
     )]
     pub project: Account<'info, Project>,
 
-    /// CHECK: Validated and initialized in ensure_user_migration_initialized helper
     #[account(
-        mut,
+        init_if_needed,
+        payer = user,
+        space = UserMigration::LEN,
         seeds = [b"user_migration", project.key().as_ref(), user.key().as_ref()],
         bump
     )]
-    pub user_migration: AccountInfo<'info>,
+    pub user_migration: Account<'info, UserMigration>,
 
     #[account(
         mut,
@@ -84,39 +85,25 @@ pub fn migrate(ctx: Context<Migrate>, amount: u64) -> Result<()> {
     let user_key = ctx.accounts.user.key();
     let bump = ctx.bumps.user_migration;
 
-    let is_new_account = ensure_user_migration_initialized(
-        ctx.program_id,
-        &ctx.accounts.user_migration,
-        &ctx.accounts.user.to_account_info(),
-        &ctx.accounts.system_program,
-        &[b"user_migration", project_key.as_ref(), user_key.as_ref()],
-        bump,
-        UserMigration::LEN,
-    )?;
-
-    let mut user_migration_data = ctx.accounts.user_migration.try_borrow_mut_data()?;
-    let mut user_migration = if is_new_account {
-        UserMigration {
-            project: project_key,
-            user: user_key,
-            old_tokens_migrated: 0,
-            new_tokens_received: 0,
-            sol_committed: 0,
-            refund_claimed: false,
-            bump,
-        }
+    // Initialize user migration data if it's a new account
+    // We check if the project field is default (unset) to detect if it's new
+    if ctx.accounts.user_migration.project == Pubkey::default() {
+        ctx.accounts.user_migration.project = project_key;
+        ctx.accounts.user_migration.user = user_key;
+        ctx.accounts.user_migration.old_tokens_migrated = 0;
+        ctx.accounts.user_migration.new_tokens_received = 0;
+        ctx.accounts.user_migration.sol_committed = 0;
+        ctx.accounts.user_migration.refund_claimed = false;
+        ctx.accounts.user_migration.bump = bump;
     } else {
-        let deser_migration = UserMigration::try_deserialize(&mut &user_migration_data[..])?;
+        // Verify existing account belongs to this project and user
         require!(
-            deser_migration.project == project_key && deser_migration.user == user_key,
+            ctx.accounts.user_migration.project == project_key && ctx.accounts.user_migration.user == user_key,
             W3SwapError::UserMigrationAccountMismatch
         );
-        require!(
-            deser_migration.bump == bump,
-            W3SwapError::UserMigrationAccountMismatch
-        );
-        deser_migration
-    };
+    }
+
+    let user_migration = &mut ctx.accounts.user_migration;
 
     // Calculate new tokens to receive (pass user key for special ratio check)
     let new_tokens_amount = project.calculate_new_tokens(amount, &ctx.accounts.user.key())?;
@@ -201,12 +188,6 @@ pub fn migrate(ctx: Context<Migrate>, amount: u64) -> Result<()> {
         .new_tokens_received
         .checked_add(new_tokens_amount)
         .ok_or(W3SwapError::ArithmeticOverflow)?;
-
-    // Persist updated user migration data
-    let serialized_user_migration = user_migration.try_to_vec()?;
-    let data_len = serialized_user_migration.len();
-    user_migration_data[..data_len].copy_from_slice(&serialized_user_migration);
-    drop(user_migration_data);
 
     // Note: Users don't commit SOL during migration per PRD
 

@@ -26,7 +26,7 @@ export type W3swap = {
     {
       "name": "activateProject",
       "docs": [
-        "Activate a project for migrations and create initial LP"
+        "Activate a project for migrations (Step 3)"
       ],
       "discriminator": [
         237,
@@ -73,111 +73,15 @@ export type W3swap = {
           "writable": true
         },
         {
-          "name": "liquidityVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  105,
-                  113,
-                  117,
-                  105,
-                  100,
-                  105,
-                  116,
-                  121,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "project"
-              }
-            ]
-          }
-        },
-        {
-          "name": "lpEscrowVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  112,
-                  95,
-                  101,
-                  115,
-                  99,
-                  114,
-                  111,
-                  119,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "project"
-              }
-            ]
-          }
-        },
-        {
-          "name": "meteoraPool",
-          "writable": true
-        },
-        {
-          "name": "lpMint"
-        },
-        {
-          "name": "newTokenMint"
-        },
-        {
-          "name": "newTokenProgram"
-        },
-        {
-          "name": "tokenProgram"
-        },
-        {
           "name": "projectAdmin",
           "writable": true,
           "signer": true,
           "relations": [
             "project"
           ]
-        },
-        {
-          "name": "meteoraProgram"
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
         }
       ],
-      "args": [
-        {
-          "name": "lpConfig",
-          "type": {
-            "defined": {
-              "name": "lpConfiguration"
-            }
-          }
-        }
-      ]
+      "args": []
     },
     {
       "name": "allocateProjectAccount",
@@ -224,8 +128,15 @@ export type W3swap = {
           }
         },
         {
-          "name": "projectAdmin",
+          "name": "payer",
+          "docs": [
+            "Signer that funds rent for the oversized project PDA"
+          ],
           "writable": true,
+          "signer": true
+        },
+        {
+          "name": "projectAdmin",
           "signer": true
         },
         {
@@ -259,6 +170,10 @@ export type W3swap = {
         {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
         }
       ],
       "args": [
@@ -464,102 +379,6 @@ export type W3swap = {
         },
         {
           "name": "lpTokensEscrowed",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "allocateProjectAccount",
-      "docs": [
-        "Pre-allocate the project PDA to avoid Solana's 10KB reallocation limit"
-      ],
-      "discriminator": [
-        198,
-        123,
-        234,
-        139,
-        136,
-        8,
-        111,
-        13
-      ],
-      "accounts": [
-        {
-          "name": "platformConfig",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  108,
-                  97,
-                  116,
-                  102,
-                  111,
-                  114,
-                  109,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "projectAdmin",
-          "signer": true
-        },
-        {
-          "name": "project",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  114,
-                  111,
-                  106,
-                  101,
-                  99,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "projectAdmin"
-              },
-              {
-                "kind": "arg",
-                "path": "projectId"
-              }
-            ]
-          }
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "projectId",
           "type": "u64"
         }
       ]
@@ -1239,6 +1058,42 @@ export type W3swap = {
       ]
     },
     {
+      "name": "expandProjectAccount",
+      "docs": [
+        "Expand the project PDA account size (step 1.5)"
+      ],
+      "discriminator": [
+        172,
+        184,
+        67,
+        162,
+        60,
+        158,
+        87,
+        68
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "projectAdmin",
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "finalizeProjectTransfers",
       "docs": [
         "Finalize project step 1: transfer LP/new tokens out and close LP escrow"
@@ -1528,6 +1383,175 @@ export type W3swap = {
         {
           "name": "amount",
           "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initializeLiquidityPool",
+      "docs": [
+        "Initialize the Liquidity Pool (Step 2.5)"
+      ],
+      "discriminator": [
+        155,
+        18,
+        138,
+        107,
+        111,
+        23,
+        178,
+        178
+      ],
+      "accounts": [
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  106,
+                  101,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "projectAdmin"
+              },
+              {
+                "kind": "account",
+                "path": "project.project_id",
+                "account": "project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "newTokenVault",
+          "writable": true
+        },
+        {
+          "name": "liquidityVault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  105,
+                  113,
+                  117,
+                  105,
+                  100,
+                  105,
+                  116,
+                  121,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "lpEscrowVault",
+          "writable": true,
+          "optional": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  112,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "project"
+              }
+            ]
+          }
+        },
+        {
+          "name": "meteoraPool",
+          "writable": true
+        },
+        {
+          "name": "lpMint"
+        },
+        {
+          "name": "newTokenMint"
+        },
+        {
+          "name": "newTokenProgram"
+        },
+        {
+          "name": "tokenProgram"
+        },
+        {
+          "name": "projectAdmin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "project"
+          ]
+        },
+        {
+          "name": "meteoraProgram"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "poolType",
+          "type": {
+            "defined": {
+              "name": "poolType"
+            }
+          }
+        },
+        {
+          "name": "lpConfig",
+          "type": {
+            "defined": {
+              "name": "lpConfiguration"
+            }
+          }
         }
       ]
     },
@@ -2389,6 +2413,19 @@ export type W3swap = {
         142,
         19
       ]
+    },
+    {
+      "name": "userMigration",
+      "discriminator": [
+        219,
+        194,
+        245,
+        85,
+        15,
+        214,
+        204,
+        163
+      ]
     }
   ],
   "events": [
@@ -3198,6 +3235,34 @@ export type W3swap = {
           {
             "name": "priceRangeMax",
             "type": "u64"
+          },
+          {
+            "name": "initialActiveId",
+            "docs": [
+              "Initial active bin ID (calculated off-chain from price)"
+            ],
+            "type": "i32"
+          },
+          {
+            "name": "activationType",
+            "docs": [
+              "Activation type (0 = Slot, 1 = Timestamp)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "activationPoint",
+            "docs": [
+              "Activation point (slot or timestamp)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "hasAlphaVault",
+            "docs": [
+              "Enable alpha vault"
+            ],
+            "type": "bool"
           }
         ]
       }
@@ -3583,6 +3648,20 @@ export type W3swap = {
           {
             "name": "timestamp",
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "poolType",
+      "docs": [
+        "Pool type selection for LP creation"
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "meteoraDlmm"
           }
         ]
       }
@@ -4253,6 +4332,67 @@ export type W3swap = {
           {
             "name": "timestamp",
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "userMigration",
+      "docs": [
+        "User migration record PDA",
+        "Seeds: [\"user_migration\", project.key(), user.key()]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "project",
+            "docs": [
+              "Project this migration belongs to"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "docs": [
+              "User who performed the migration"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "oldTokensMigrated",
+            "docs": [
+              "Total old tokens migrated by user"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "newTokensReceived",
+            "docs": [
+              "Total new tokens received by user"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "solCommitted",
+            "docs": [
+              "SOL committed for protection"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "refundClaimed",
+            "docs": [
+              "Refund claimed flag"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "Bump seed for PDA derivation"
+            ],
+            "type": "u8"
           }
         ]
       }

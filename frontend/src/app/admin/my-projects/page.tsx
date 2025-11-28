@@ -7,20 +7,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Search, Eye, Edit } from 'lucide-react';
-import { useProjects, UiProject } from '@/lib/api';
+import { useFetchProjects } from '@/lib/api';
 import { useAnchorWallet } from '@solana/wallet-adapter-react';
 import { RequireAdmin } from '@/components/auth/require-admin';
 
 export default function MyProjectsPage() {
   const wallet = useAnchorWallet();
-  const { data: projects, isLoading, error } = useProjects();
+  const { data: projects, isLoading, error } = useFetchProjects();
+  console.log(projects);
   const [searchTerm, setSearchTerm] = useState('');
 
   const mine = useMemo(() => {
     const me = wallet?.publicKey?.toBase58();
-    const rows: UiProject[] = (projects || []);
-    return rows.filter((p) => (!me ? false : p.projectAdmin === me))
-      .filter((p) => searchTerm === '' || String(p.projectId).includes(searchTerm));
+    const rows = (projects || []);
+    return rows.filter((p) => (!me ? false : p.account.projectAdmin.toBase58() === me))
+      .filter((p) => searchTerm === '' || String(p.account.projectId).includes(searchTerm));
   }, [projects, wallet?.publicKey?.toBase58(), searchTerm]);
 
   return (
@@ -55,22 +56,22 @@ export default function MyProjectsPage() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {mine.map((project) => (
-              <Card key={`${project.projectId}:${project.projectAdmin}`} className="relative">
+              <Card key={`${project.account.projectId}:${project.account.projectAdmin}`} className="relative">
                 <CardHeader>
-                  <CardTitle>Project #{project.projectId}</CardTitle>
+                  <CardTitle>Project #{project.account.projectId}</CardTitle>
                   <CardDescription>
-                    {project.oldTokenMint.toString().slice(0, 8)}… → {project.newTokenMint.toString().slice(0, 8)}…
+                    {project.account.oldTokenMint.toString().slice(0, 8)}… → {project.account.newTokenMint.toString().slice(0, 8)}…
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <div className="flex gap-2">
                     <Button asChild variant="outline" size="sm" className="flex-1">
-                      <Link href={`/admin/projects/${project.projectId}`}>
+                      <Link href={`/admin/projects/${project.account.projectId}`}>
                         <Eye className="mr-2 h-4 w-4" /> View
                       </Link>
                     </Button>
                     <Button asChild variant="outline" size="sm" className="flex-1">
-                      <Link href={`/admin/projects/${project.projectId}/edit`}>
+                      <Link href={`/admin/projects/${project.account.projectId}/edit`}>
                         <Edit className="mr-2 h-4 w-4" /> Edit
                       </Link>
                     </Button>

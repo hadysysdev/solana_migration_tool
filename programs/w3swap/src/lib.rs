@@ -8,6 +8,7 @@ pub mod events;
 pub mod instructions;
 pub mod state;
 pub mod utils;
+pub mod liquidity;
 
 use instructions::*;
 use state::{AdminAction, CreateProjectParams, LpConfiguration, SwapBackend};
@@ -93,6 +94,11 @@ pub mod w3swap {
         instructions::allocate_project_account(ctx, project_id)
     }
 
+    /// Expand the project PDA account size (step 1.5)
+    pub fn expand_project_account(ctx: Context<ExpandProjectAccount>) -> Result<()> {
+        instructions::expand_project_account(ctx)
+    }
+
     /// Create project (step 1): initialize account and fields
     /// Note: Must call allocate_project_account first
     pub fn create_project_init(
@@ -112,12 +118,20 @@ pub mod w3swap {
         instructions::fund_project(ctx, amount)
     }
 
-    /// Activate a project for migrations and create initial LP
-    pub fn activate_project(
-        ctx: Context<ActivateProject>,
+    /// Initialize the Liquidity Pool (Step 2.5)
+    pub fn initialize_liquidity_pool<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeLiquidityPool<'info>>,
+        pool_type: state::PoolType,
         lp_config: LpConfiguration,
     ) -> Result<()> {
-        instructions::activate_project(ctx, lp_config)
+        instructions::liquidity::initialize_liquidity_pool(ctx, pool_type, lp_config)
+    }
+
+    /// Activate a project for migrations (Step 3)
+    pub fn activate_project(
+        ctx: Context<ActivateProject>,
+    ) -> Result<()> {
+        instructions::activate_project(ctx)
     }
 
     /// Pause a project temporarily

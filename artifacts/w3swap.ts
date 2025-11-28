@@ -224,8 +224,15 @@ export type W3swap = {
           }
         },
         {
-          "name": "projectAdmin",
+          "name": "payer",
+          "docs": [
+            "Signer that funds rent for the oversized project PDA"
+          ],
           "writable": true,
+          "signer": true
+        },
+        {
+          "name": "projectAdmin",
           "signer": true
         },
         {
@@ -259,6 +266,10 @@ export type W3swap = {
         {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
         }
       ],
       "args": [

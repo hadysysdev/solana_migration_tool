@@ -66,61 +66,7 @@ pub fn user_migration_seeds(project: &Pubkey, user: &Pubkey) -> Vec<Vec<u8>> {
     ]
 }
 
-/// Ensures the user migration PDA is initialized exactly once without using `init_if_needed`.
-/// Returns true when the account was created during this call and false if it was already initialized.
-///
-/// This helper prevents reinitialization attacks by refusing to recreate an account that already
-/// belongs to the program or contains data, while still allowing first-time creation.
-pub fn ensure_user_migration_initialized<'info>(
-    program_id: &Pubkey,
-    user_migration_info: &AccountInfo<'info>,
-    payer: &AccountInfo<'info>,
-    system_program: &Program<'info, System>,
-    seeds: &[&[u8]],
-    bump: u8,
-    space: usize,
-) -> Result<bool> {
-    if user_migration_info.owner == program_id {
-        require!(
-            !user_migration_info.data_is_empty(),
-            W3SwapError::UserMigrationAlreadyInitialized
-        );
-        return Ok(false);
-    }
 
-    require!(
-        user_migration_info.owner == &System::id(),
-        W3SwapError::InvalidAccountOwner
-    );
-    require!(
-        user_migration_info.lamports() == 0 && user_migration_info.data_is_empty(),
-        W3SwapError::UserMigrationAlreadyInitialized
-    );
-
-    let rent = Rent::get()?;
-    let lamports = rent.minimum_balance(space).max(1);
-
-    let mut signer_seeds: Vec<&[u8]> = seeds.to_vec();
-    let bump_bytes = [bump];
-    signer_seeds.push(&bump_bytes);
-    let signer_seeds_slice = &[signer_seeds.as_slice()];
-
-    anchor_lang::system_program::create_account(
-        CpiContext::new_with_signer(
-            system_program.to_account_info(),
-            anchor_lang::system_program::CreateAccount {
-                from: payer.clone(),
-                to: user_migration_info.clone(),
-            },
-            signer_seeds_slice,
-        ),
-        lamports,
-        space as u64,
-        program_id,
-    )?;
-
-    Ok(true)
-}
 
 /// Generic token account validation using token interface
 pub fn validate_token_account_generic(
@@ -328,4 +274,34 @@ pub fn validate_swap_backend(backend: &str, program_id: &Pubkey) -> Result<()> {
 /// Creates seeds for liquidation state PDA (if needed in future)
 pub fn liquidation_state_seeds(project: &Pubkey) -> Vec<Vec<u8>> {
     vec![b"liquidation_state".to_vec(), project.to_bytes().to_vec()]
+}
+
+/// Validate LP configuration parameters
+pub fn validate_lp_configuration(config: &crate::state::LpConfiguration) -> Result<()> {
+    // Validate token allocation is not zero
+    if config.token_allocation == 0 {
+        return Err(W3SwapError::AmountIsZero.into());
+    }
+
+    // Validate initial price is not zero
+    if config.initial_price == 0 {
+        return Err(W3SwapError::AmountIsZero.into());
+    }
+
+    // Validate price range
+    if config.price_range_min >= config.price_range_max {
+        return Err(W3SwapError::InvalidExchangeRatio.into());
+    }
+
+    // Validate bin step (common values: 10, 20, 50, 100)
+    if config.bin_step == 0 || config.bin_step > 1000 {
+        return Err(W3SwapError::InvalidExchangeRatio.into());
+    }
+
+    // Validate base fee (should be reasonable, e.g., 1-1000 bps)
+    if config.base_fee > 1000 {
+        return Err(W3SwapError::InvalidExchangeRatio.into());
+    }
+
+    Ok(())
 }
