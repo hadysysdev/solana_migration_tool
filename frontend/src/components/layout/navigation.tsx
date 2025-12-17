@@ -129,7 +129,8 @@ export function Navigation() {
                   <Button
                     key={link.name}
                     variant="ghost"
-                    size="icon-sm"
+                    size="icon"
+                    className="h-8 w-8"
                     asChild
                   >
                     <a
@@ -222,7 +223,8 @@ export function Navigation() {
                       <Button
                         key={link.name}
                         variant="ghost"
-                        size="icon-sm"
+                        size="icon"
+                        className="h-8 w-8"
                         asChild
                       >
                         <a

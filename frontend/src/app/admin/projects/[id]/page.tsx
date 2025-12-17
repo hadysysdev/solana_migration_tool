@@ -32,7 +32,7 @@ export default function ProjectDetailPage() {
           </div>
           <div>
             <div className="text-foreground-muted">Events</div>
-            <div className="font-semibold">{analytics ? Object.values(analytics.event_counts || {}).reduce((a: any,b: any)=> (a as number) + (b as number), 0) : 0}</div>
+            <div className="font-semibold">{analytics ? Object.values(analytics.event_counts || {}).reduce((a: number, b: unknown) => a + (typeof b === 'number' ? b : 0), 0) : 0}</div>
           </div>
         </CardContent> */}
       </Card>

@@ -8,21 +8,21 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Search, Eye, Edit } from 'lucide-react';
 import { useFetchProjects } from '@/lib/api';
-import { useAnchorWallet } from '@solana/wallet-adapter-react';
-import { RequireAdmin } from '@/components/auth/require-admin';
+import { useWalletUi } from '@wallet-ui/react';
+import { RequireAdmin } from '@/components/w3swap/RequireAdmin';
 
 export default function MyProjectsPage() {
-  const wallet = useAnchorWallet();
+  const { account } = useWalletUi();
   const { data: projects, isLoading, error } = useFetchProjects();
   console.log(projects);
   const [searchTerm, setSearchTerm] = useState('');
 
   const mine = useMemo(() => {
-    const me = wallet?.publicKey?.toBase58();
+    const me = account?.address;
     const rows = (projects || []);
     return rows.filter((p) => (!me ? false : p.account.projectAdmin.toBase58() === me))
       .filter((p) => searchTerm === '' || String(p.account.projectId).includes(searchTerm));
-  }, [projects, wallet?.publicKey?.toBase58(), searchTerm]);
+  }, [projects, account?.address, searchTerm]);
 
   return (
     <RequireAdmin fallback={<div className="p-6">Admins only</div>}>

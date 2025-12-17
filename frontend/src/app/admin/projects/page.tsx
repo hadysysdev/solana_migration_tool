@@ -23,7 +23,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useFetchProjects } from '@/lib/api';
-import { useAnchorWallet } from '@solana/wallet-adapter-react';
+import { useWalletUi } from '@wallet-ui/react';
 import { useIsPlatformAdmin } from '@/lib/roles';
 
 const statusConfig = {
@@ -37,7 +37,7 @@ export default function ProjectsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [mineOnly, setMineOnly] = useState<boolean>(false);
-  const wallet = useAnchorWallet();
+  const { account } = useWalletUi();
   const isPlatformAdmin = useIsPlatformAdmin();
 
   const { data: projects, isLoading, error } = useFetchProjects();
@@ -221,7 +221,7 @@ export default function ProjectsPage() {
                       </Link>
                     </Button>
                     {project.account.status === 'Created' && (
-                      <Button size="sm" variant="gradient">
+                      <Button size="sm" className="btn-brand">
                         <Play className="mr-2 h-4 w-4" />
                         Activate
                       </Button>

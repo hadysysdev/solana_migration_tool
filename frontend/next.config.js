@@ -66,14 +66,26 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
+              "worker-src 'self' blob:",
+              "child-src 'self' blob:",
               "font-src 'self'",
               // Allow local backend/API and dev websockets during development
-              "connect-src 'self' http://localhost:8000 https://api.devnet.solana.com https://api.mainnet-beta.solana.com https://dlmm-api.meteora.ag ws://localhost:3000 wss://api.devnet.solana.com wss://api.mainnet-beta.solana.com",
+              "connect-src 'self' http://localhost:8000 https://api.devnet.solana.com https://api.mainnet-beta.solana.com https://dlmm-api.meteora.ag https://mainnet.helius-rpc.com https://cdn.jsdelivr.net https://unpkg.com ws://localhost:3000 wss://api.devnet.solana.com wss://api.mainnet-beta.solana.com",
               "frame-src 'none'",
             ].join('; '),
+          },
+        ],
+      },
+      // Cache animation files aggressively
+      {
+        source: '/animations/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
           },
         ],
       },

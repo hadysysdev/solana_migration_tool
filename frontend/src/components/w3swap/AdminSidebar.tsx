@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { LogoGraphical } from '@/components/ui/logo';
 import { 
   LayoutDashboard,
   Package,
@@ -33,7 +32,6 @@ const navigation = [
       { name: 'All Projects', href: '/admin/projects' },
       { name: 'My Projects', href: '/admin/my-projects' },
       { name: 'Create Project', href: '/admin/projects/create' },
-      { name: 'Pending Activation', href: '/admin/projects/pending' },
     ],
   },
   {
@@ -45,26 +43,6 @@ const navigation = [
     name: 'Token Snapshot',
     href: '/admin/snapshot',
     icon: Camera,
-  },
-  {
-    name: 'Migrations',
-    href: '/admin/migrations',
-    icon: Users,
-  },
-  {
-    name: 'Analytics',
-    href: '/admin/analytics',
-    icon: Activity,
-  },
-  {
-    name: 'Security',
-    href: '/admin/security',
-    icon: Shield,
-  },
-  {
-    name: 'Documentation',
-    href: '/admin/docs',
-    icon: FileText,
   },
   {
     name: 'Settings',
@@ -97,13 +75,12 @@ export function AdminSidebar() {
   };
 
   return (
-    <div className="flex h-screen w-64 flex-col bg-surface border-r border-border">
+    <div className="flex h-screen w-72 flex-col bg-black/50 border-r border-slate-800 backdrop-blur-sm">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-border px-6 shrink-0">
-        <LogoGraphical size="sm" />
-        <span className="text-sm font-medium text-foreground-muted">
+      <div className="flex h-16 items-center gap-3 border-b border-slate-800 px-6 shrink-0">
+        <div className="text-sm font-medium bg-gradient-to-r from-cyan-500 via-purple-500 to-teal-500 bg-clip-text text-transparent">
           Admin
-        </span>
+        </div>
       </div>
 
       {/* Navigation */}
@@ -112,6 +89,7 @@ export function AdminSidebar() {
           const isActive = pathname === item.href || 
             (item.children && item.children.some(child => pathname === child.href));
           const isOpen = item.children ? openMenus[item.name] : false;
+          const Icon = item.icon;
           
           return (
             <div key={item.name}>
@@ -121,11 +99,11 @@ export function AdminSidebar() {
                   className={cn(
                     'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all',
                     isActive
-                      ? 'bg-primary-500/10 text-primary-400'
-                      : 'text-foreground-muted hover:bg-surface-2 hover:text-foreground'
+                      ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 border border-cyan-500/30'
+                      : 'text-slate-400 hover:bg-slate-900/50 hover:text-white'
                   )}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4" />
                   <span className="flex-1 text-left">{item.name}</span>
                   <ChevronRight className={cn(
                     "h-4 w-4 transition-transform",
@@ -138,11 +116,11 @@ export function AdminSidebar() {
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all',
                     isActive
-                      ? 'bg-primary-500/10 text-primary-400'
-                      : 'text-foreground-muted hover:bg-surface-2 hover:text-foreground'
+                      ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 border border-cyan-500/30'
+                      : 'text-slate-400 hover:bg-slate-900/50 hover:text-white'
                   )}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4" />
                   <span className="flex-1">{item.name}</span>
                 </Link>
               )}
@@ -157,8 +135,8 @@ export function AdminSidebar() {
                       className={cn(
                         'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all',
                         pathname === child.href
-                          ? 'bg-surface-2 text-foreground'
-                          : 'text-foreground-muted hover:bg-surface-2 hover:text-foreground'
+                          ? 'bg-slate-900/50 text-white'
+                          : 'text-slate-400 hover:bg-slate-900/50 hover:text-white'
                       )}
                     >
                       <div className="h-1.5 w-1.5 rounded-full bg-current opacity-40" />
@@ -173,21 +151,18 @@ export function AdminSidebar() {
       </nav>
 
       {/* User Section */}
-      <div className="border-t border-border p-4">
-        <div className="flex items-center gap-3 rounded-lg bg-surface-2 px-3 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-500/10 text-primary-400 font-semibold">
+      <div className="border-t border-slate-800 p-4">
+        <div className="flex items-center gap-3 rounded-lg bg-slate-900/50 px-3 py-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-cyan-400 font-semibold">
             A
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium">Admin User</p>
-            <p className="text-xs text-foreground-muted">admin@w3swap.io</p>
+            <p className="text-sm font-medium text-white">Admin User</p>
+            <p className="text-xs text-slate-400">admin@w3swap.io</p>
           </div>
         </div>
-        <button className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground">
-          <LogOut className="h-4 w-4" />
-          <span>Logout</span>
-        </button>
       </div>
     </div>
   );
 }
+

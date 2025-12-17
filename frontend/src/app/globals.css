@@ -316,6 +316,155 @@
     100% { transform: translateX(100%); }
   }
 
+  /* Glass card effect (w3stream style) */
+  .glass-card {
+    background: rgba(9, 40, 80, 0.31);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glass-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.8),
+      transparent
+    );
+  }
+
+  .glass-card::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.8),
+      transparent,
+      rgba(255, 255, 255, 0.3)
+    );
+  }
+
+
+  /* Video background styles */
+  .video-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    overflow: hidden;
+  }
+
+  .video-element {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    min-width: 100%;
+    min-height: 100%;
+    width: auto;
+    height: auto;
+    transform: translate(-50%, -50%);
+    object-fit: cover;
+  }
+
+  .video-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  /* Fade-in-up animation */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.5s ease-out forwards;
+    opacity: 0; /* Start invisible, CSS animation makes it visible */
+  }
+
+  .animation-delay-100 {
+    animation-delay: 0.1s;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 0.2s;
+  }
+
+  /* Respect reduced motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in-up {
+      animation: none;
+      opacity: 1;
+    }
+  }
+
+  /* Brand button styles (w3stream style) - outside layer for proper specificity */
+  .btn-brand {
+    padding: 10px 20px !important;
+    background-color: #161a20 !important;
+    border: none !important;
+    color: cyan !important;
+    font-weight: 700 !important;
+    border-radius: 12px !important;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible !important;
+  }
+
+  .btn-brand::after {
+    content: "";
+    background: linear-gradient(
+      149deg,
+      rgb(124, 83, 237) 0%,
+      rgba(64, 114, 145, 1) 51%,
+      rgba(87, 199, 133, 1) 89%,
+      rgba(0, 255, 64, 1) 100%
+    );
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    height: calc(100% + 4px);
+    width: calc(100% + 4px);
+    border-radius: 12px;
+    z-index: -1;
+    transition: all 0.3s ease;
+  }
+
+  .btn-brand:hover {
+    z-index: 0;
+    color: black !important;
+    font-weight: 700 !important;
+  }
+
   /* Status indicators */
   .status-dot {
     @apply w-2 h-2 rounded-full;
@@ -402,5 +551,25 @@
 
   .text-responsive-xl {
     @apply text-xl sm:text-2xl lg:text-3xl;
+  }
+}
+
+/* Wallet dropdown - override slide animations */
+.wallet-dropdown[data-side="bottom"],
+.wallet-dropdown[data-side="left"],
+.wallet-dropdown[data-side="right"],
+.wallet-dropdown[data-side="top"] {
+  transform: none !important;
+  animation: fadeInZoom 0.15s ease-out !important;
+}
+
+@keyframes fadeInZoom {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }

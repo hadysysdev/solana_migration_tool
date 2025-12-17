@@ -3,7 +3,7 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { WalletProvider } from '@/components/wallet/wallet-provider';
+import { SolanaProvider } from './providers/SolanaProvider';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme/theme-provider';
 
@@ -12,7 +12,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 60 * 1000, // 1 minute
-      cacheTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 5 * 60 * 1000, // 5 minutes (renamed from cacheTime in v5)
       refetchOnWindowFocus: false,
       retry: (failureCount, error) => {
         // Don't retry on 4xx errors
@@ -44,7 +44,7 @@ export function Providers({ children }: ProvidersProps) {
         enableSystem={false}
         disableTransitionOnChange
       >
-        <WalletProvider>
+        <SolanaProvider>
           {children}
           <Toaster
             position="bottom-right"
@@ -59,13 +59,11 @@ export function Providers({ children }: ProvidersProps) {
               },
             }}
           />
-        </WalletProvider>
+        </SolanaProvider>
       </ThemeProvider>
       {process.env.NODE_ENV === 'development' && (
         <ReactQueryDevtools
           initialIsOpen={false}
-          position="bottom-left"
-          buttonPosition="bottom-left"
         />
       )}
     </QueryClientProvider>
