@@ -235,6 +235,12 @@ export default function CreateProjectPage() {
     try {
       if (!connected || !account || !wallet) throw new Error('Connect wallet');
 
+
+
+      // getProject of current log in user
+      // Check for the highest projectID
+      // Increase it by 1 that will be the new projectID
+
       const projectId = Math.floor(Date.now() / 1000);
       const response = await createProjectFromForm(account, wallet, {
         projectId,
