@@ -199,7 +199,7 @@ export async function fundProject(
 ) {
   const provider = createAnchorProviderFromWalletUi(account, wallet);
   const program = getProgram(provider);
-  const [project] = findProjectPda(program.programId, provider.wallet.publicKey, projectId);
+  const [project] = findProjectPda(program.programId, provider.wallet.publicKey, new BN(projectId));
   const projectAcc = await program.account.project.fetch(project);
   const adminNewTokenAccount = await getAssociatedTokenAddress(
     projectAcc.newTokenMint,
