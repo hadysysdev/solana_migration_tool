@@ -1,8 +1,9 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
 import { findProjectPda, getConnection, Project } from './anchor';
-import { getProject, getProjects } from './w3swapClient';
+import { createAnchorProviderFromWalletUi, getProject, getProjects } from './w3swapClient';
 import { useAnchorWallet } from '@solana/wallet-adapter-react';
+import { useWalletUi } from '@wallet-ui/react';
 import { AnchorProvider, BN } from '@coral-xyz/anchor';
 import { W3SWAP_PROGRAM_ID, SOLANA_RPC_URL } from './constants';
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
@@ -28,34 +29,91 @@ const normalizeProject = (account: any) => {
   };
 };
 
+
+// const projects: ProgramAccount<{
+//     projectId: BN;
+//     projectAdmin: PublicKey;
+//     oldTokenMint: PublicKey;
+//     newTokenMint: PublicKey;
+//     oldTokenProgram: PublicKey;
+//     newTokenProgram: PublicKey;
+//     oldTokenVault: PublicKey;
+//     newTokenVault: PublicKey;
+//     liquidityVault: PublicKey;
+//     wsolVault: PublicKey;
+//     lpEscrowVault: PublicKey;
+//     status: any;
+//      migrationStart: BN;
+//     migrationEnd: BN;
+//     migrationDuration: BN;
+//     totalPauseDuration: BN;
+//     lastPauseStart: BN;
+//     activatedAt: BN;
+//     exchangeRatioNumerator: BN;
+//     exchangeRatioDenominator: BN;
+//     autoPauseThresholdPercent: number;
+
+// const mapProjectAccount2Project = (projectAccount:any):Project => {
+
+//   return {
+//     projectId: projectAccount.projectId,
+//     projectAdmin: projectAccount.projectAdmin,
+//     oldTokenMint: projectAccount.oldTokenMint,
+//     newTokenMint: projectAccount.newTokenMint,
+//     status: projectAccount.status,
+//     totalOldMigrated: projectAccount.totalMigrated,
+//     totalUsers: projectAccount.totalUsers,
+//     exchangeRateOld: projectAccount.exchangeRateOld,
+//     exchangeRateNew: projectAccount.exchangeRateNew,
+//     createdAt: projectAccount.createdAt,
+//   }
+// }
+
+
+// export type Project = {
+//   projectId: BN;
+//   projectAdmin: PublicKey;
+//   oldTokenMint: PublicKey;
+//   newTokenMint: PublicKey;
+//   oldTokenProgram: PublicKey;
+//   newTokenProgram: PublicKey;
+//   migrationStart: BN;
+//   migrationEnd: BN;
+//   migrationDuration: BN;
+//   totalPauseDuration: BN;
+//   lastPauseStart: BN;
+//   activatedAt: BN;
+//   exchangeRatioNumerator: BN;
+//   exchangeRatioDenominator: BN;
+//   autoPauseThresholdPercent: number;
+//   projectName: string;
+//   totalOldMigrated: BN;
+//   totalNewDistributed: BN;
+//   totalSolCommitted: BN;
+//   lpCreated: boolean;
+//   lpTokensDeposited: BN;
+//   lpLockEnd: BN;
+//   meteoraPool: PublicKey;
+//   lpConfig: LpConfiguration | null;
+//   specialRatioEnabled: boolean;
+//   specialRatioWallets: PublicKey[];
+//   allowlistEnabled: boolean;
+//   denylistEnabled: boolean;
+//   allowlist: PublicKey[] | null;
+//   denylist: PublicKey[] | null;
+//   totalOldSold: BN;
+//   totalWsolReceived: BN;
+//   liquidationBackend: PublicKey | null;
+//   lastLiquidationSlot: BN;
+//   liquidationInProgress: boolean;
+//   bump: number;
+//   status: any;
+// }
+
 //       // For now, return basic mint info
 export const useFetchProjects = () => {
-  const wallet = useAnchorWallet();
-  const connection = getConnection();
-
-  if (wallet && wallet.publicKey) {
-    const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' });
-    return useQuery({
-      queryKey: ['projects'],
-      queryFn: async () => {
-        const projects = await getProjects(provider);
-        console.log("Projects count: ", projects.length);
-        if (projects.length > 0) {
-          const firstProject = projects[0]
-          console.log("First project raw:", firstProject);
-          console.log("First project account:", firstProject?.account);
-          console.log("First project status:", firstProject?.account.status);
-          console.log("First project admin type:", firstProject?.account.projectAdmin?.constructor?.name);
-        }
-        return projects.map((p: any) => ({
-          ...p,
-          account: normalizeProject(p.account)
-        }));
-      },
-      staleTime: 30000, // 30 seconds
-      refetchInterval: 60000, // 1 minute
-    })
-  } else {
+  const { account, wallet, connected } = useWalletUi();
+  if (!wallet || !connected || !account) {
     return useQuery({
       queryKey: ['projects'],
       queryFn: () => [],
@@ -63,29 +121,36 @@ export const useFetchProjects = () => {
       refetchInterval: 60000, // 1 minute
     })
   }
+
+  const provider = createAnchorProviderFromWalletUi(account, wallet);
+  return useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      const projects = await getProjects(provider);
+      // console.log("Projects count: ", projects.length);
+      // if (projects.length > 0) {
+      //   const firstProject = projects[0]
+      //   console.log("First project raw:", firstProject);
+      //   console.log("First project account:", firstProject?.account);
+      //   console.log("First project status:", firstProject?.account.status);
+      //   console.log("First project admin type:", firstProject?.account.projectAdmin?.constructor?.name);
+      // }
+      return projects.map((p: any) => ({
+        ...p,
+        account: normalizeProject(p.account)
+      }));
+    },
+    staleTime: 30000, // 30 seconds
+    refetchInterval: 60000, // 1 minute
+  })
 }
 
 
 export const usefetchProject = (projectId: BN) => {
 
-  const wallet = useAnchorWallet();
-  const connection = getConnection();
+  const { account, wallet, connected } = useWalletUi();
 
-  if (wallet && wallet.publicKey) {
-    const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' });
-
-    const [projectPDA] = findProjectPda(W3SWAP_PROGRAM_ID, wallet.publicKey, projectId)
-
-    return useQuery({
-      queryKey: ['project', projectId],
-      queryFn: async () => {
-        const project = await getProject(provider, projectPDA);
-        return project ? normalizeProject(project) : null;
-      },
-      enabled: !!projectId,
-      staleTime: 30000,
-    })
-  } else {
+  if (!wallet || !connected || !account) {
     return useQuery({
       queryKey: ['project', projectId],
       queryFn: () => null,
@@ -93,6 +158,22 @@ export const usefetchProject = (projectId: BN) => {
       staleTime: 30000,
     })
   }
+
+  const me = new PublicKey(account.address);
+
+  const provider = createAnchorProviderFromWalletUi(account, wallet);
+
+  const [projectPDA] = findProjectPda(W3SWAP_PROGRAM_ID, me, projectId)
+
+  return useQuery({
+    queryKey: ['project', projectId],
+    queryFn: async () => {
+      const project = await getProject(provider, projectPDA);
+      return project ? normalizeProject(project) : null;
+    },
+    enabled: !!projectId,
+    staleTime: 30000,
+  })
 
 }
 

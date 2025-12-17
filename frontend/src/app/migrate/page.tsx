@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
+import {
   Search,
   ArrowRight,
   Rocket,
@@ -18,22 +18,23 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useProjects } from '@/lib/api';
+import { useFetchProjects } from '@/lib/api';
+// import { useProjects } from '@/lib/api';
 
 export default function MigratePage() {
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const { data: projects, isLoading, error } = useProjects();
+
+  const { data: projects, isLoading, error } = useFetchProjects();
 
   // Filter only active projects for public migration
   const activeProjects = (projects || []).filter(project => project.status === 'Active');
-  
+
   const filteredProjects = activeProjects.filter(project => {
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch = searchTerm === '' ||
       project.id.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.oldTokenMint.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.newTokenMint.toString().toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     return matchesSearch;
   });
 
@@ -143,7 +144,7 @@ export default function MigratePage() {
               const now = Date.now() / 1000;
               const timeRemaining = (project.endTime || 0) - now;
               const daysRemaining = Math.ceil(timeRemaining / (24 * 60 * 60));
-              
+
               return (
                 <motion.div
                   key={project.id.toString()}
@@ -192,7 +193,7 @@ export default function MigratePage() {
                       <div className="grid grid-cols-2 gap-3 py-3 border-y border-slate-800">
                         <div className="text-center">
                           <p className="text-2xl font-bold text-cyan-400">
-                            {project.totalMigrated > 0 
+                            {project.totalMigrated > 0
                               ? `${(project.totalMigrated / 1000000).toFixed(1)}M`
                               : '0'
                             }

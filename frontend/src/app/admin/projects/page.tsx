@@ -41,17 +41,19 @@ export default function ProjectsPage() {
   const isPlatformAdmin = useIsPlatformAdmin();
 
   const { data: projects, isLoading, error } = useFetchProjects();
-
+  const me = account?.address;
   const filteredProjects = (projects || []).filter((project) => {
     // Safety check for project.account
     if (!project?.account) return false;
+
+
 
     // TODO: Add token symbol lookup when we have metadata
     const matchesSearch = searchTerm === '' ||
       String(project.account.projectId || '').toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || project.account.status === statusFilter;
-    const matchesMine = !mineOnly || (wallet?.publicKey && project.account.projectAdmin?.toString() === wallet.publicKey.toString());
+    const matchesMine = !mineOnly || (me && project.account.projectAdmin?.toString() === me);
 
     return matchesSearch && matchesStatus && matchesMine;
   });
@@ -159,7 +161,7 @@ export default function ProjectsPage() {
           {filteredProjects.map((project) => {
             if (!project?.account) return null;
             const status: any = (statusConfig as any)[project.account.status] || { label: project.account.status || 'Unknown', color: 'default' };
-            const isMine = !!wallet?.publicKey && project.account.projectAdmin?.toString() === wallet.publicKey.toString();
+            const isMine = !!me && project.account.projectAdmin?.toString() === me;
 
             return (
               <Card key={`${project.account.projectId}:${project.account.projectAdmin}`} className="relative overflow-hidden hover:border-primary-500/50 transition-all">

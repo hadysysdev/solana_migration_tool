@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useWalletUi } from '@wallet-ui/react';
-import { createProjectInitFromForm, createProjectVaults, fundProject as fundProjectIx, activateProject as activateProjectIx } from '@/lib/w3swapClient';
+import { createProjectFromForm, fundProject, activateProject } from '@/lib/w3swapClient';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { RequireAdmin } from '@/components/auth/require-admin';
@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
+import {
   ArrowRight,
   ArrowLeft,
   Loader2,
@@ -26,6 +26,7 @@ import {
   X,
   FileText
 } from 'lucide-react';
+import { BN } from '@coral-xyz/anchor';
 
 interface ProjectConfig {
   name: string;
@@ -34,6 +35,7 @@ interface ProjectConfig {
     address: string;
     symbol: string;
     decimals: number;
+    isToken2022: boolean;
   };
   newToken: {
     address: string;
@@ -48,9 +50,9 @@ interface ProjectConfig {
   startDate: string;
   endDate: string;
   lpConfig: {
-    commitment: string;
+    commitment: number;
     lockDuration: number;
-    initialPrice: string;
+    initialPrice: number;
     binStep: number;
     minBinId: number;
     maxBinId: number;
@@ -71,7 +73,7 @@ export default function CreateProjectPage() {
   const [activeTab, setActiveTab] = useState('basic');
   const [isCreating, setIsCreating] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<number | null>(null);
-  const [fundAmount, setFundAmount] = useState<string>('');
+  const [fundAmount, setFundAmount] = useState<number>(0);
   const [activateParams, setActivateParams] = useState({
     meteoraPool: '',
     lpMint: '',
@@ -82,7 +84,7 @@ export default function CreateProjectPage() {
     priceRangeMin: '0.0005',
     priceRangeMax: '0.002',
   });
-  
+
   const [config, setConfig] = useState<ProjectConfig>({
     name: '',
     description: '',
@@ -90,6 +92,7 @@ export default function CreateProjectPage() {
       address: '',
       symbol: '',
       decimals: 9,
+      isToken2022: false,
     },
     newToken: {
       address: '',
@@ -104,9 +107,9 @@ export default function CreateProjectPage() {
     startDate: '',
     endDate: '',
     lpConfig: {
-      commitment: '',
+      commitment: 0,
       lockDuration: 60,
-      initialPrice: '1',
+      initialPrice: 1,
       binStep: 100,
       minBinId: -1000,
       maxBinId: 1000,
@@ -134,16 +137,20 @@ export default function CreateProjectPage() {
     return !!(config.oldToken.address.trim() && config.newToken.address.trim());
   };
 
+  const validateNotTheSameToken = (): boolean => {
+    return config.oldToken.address !== config.newToken.address;
+  };
+
   const validateMigrationTab = (): boolean => {
     return !!(config.startDate && config.endDate);
   };
 
   const validateLiquidityTab = (): boolean => {
     return !!(
-      config.lpConfig.commitment?.trim() &&
-      config.lpConfig.lockDuration &&
-      config.lpConfig.initialPrice?.trim() &&
-      config.lpConfig.binStep &&
+      config.lpConfig.commitment > 0 &&
+      config.lpConfig.lockDuration > 0 &&
+      config.lpConfig.initialPrice > 0 &&
+      config.lpConfig.binStep > 0 &&
       config.lpConfig.minBinId !== undefined &&
       config.lpConfig.maxBinId !== undefined
     );
@@ -171,11 +178,11 @@ export default function CreateProjectPage() {
     const tabs = ['basic', 'tokens', 'migration', 'liquidity', 'access'];
     const targetIndex = tabs.indexOf(tab);
     if (targetIndex === -1) return false;
-    
+
     // Can always go to previous tabs
     const currentIndex = tabs.indexOf(activeTab);
     if (targetIndex <= currentIndex) return true;
-    
+
     // For future tabs, check if all previous tabs are valid
     for (let i = 0; i < targetIndex; i++) {
       const tab = tabs[i];
@@ -199,7 +206,7 @@ export default function CreateProjectPage() {
       toast.error('Please complete all required fields before proceeding');
       return;
     }
-    
+
     const tabs = ['basic', 'tokens', 'migration', 'liquidity', 'access'];
     const currentIndex = tabs.indexOf(activeTab);
     if (currentIndex < tabs.length - 1) {
@@ -229,23 +236,24 @@ export default function CreateProjectPage() {
       if (!connected || !account || !wallet) throw new Error('Connect wallet');
 
       const projectId = Math.floor(Date.now() / 1000);
-      await createProjectInitFromForm(account, wallet, {
+      const response = await createProjectFromForm(account, wallet, {
         projectId,
         name: config.name,
         oldTokenMint: config.oldToken.address,
+        oldIsToken2022: !!config.oldToken.isToken2022,
         newTokenMint: config.newToken.address,
         newIsToken2022: !!config.newToken.isToken2022,
         startTime: config.startDate ? Math.floor(new Date(config.startDate).getTime() / 1000) : undefined,
         endTime: config.endDate ? Math.floor(new Date(config.endDate).getTime() / 1000) : undefined,
         exchangeOld: config.migrationRate.oldAmount || 0,
         exchangeNew: config.migrationRate.newAmount || 0,
-        solCommitment: config.lpConfig.commitment || '0',
+        solCommitment: config.lpConfig.commitment || 0,
         allowList: config.allowList,
         denyList: config.denyList,
         specialRatios: config.specialRatios,
       });
 
-      await createProjectVaults(account, wallet, projectId);
+      // await createProjectVaults(account, wallet, projectId);
       setCreatedProjectId(projectId);
       toast.success('Project created and vaults initialized');
     } catch (e) {
@@ -259,7 +267,7 @@ export default function CreateProjectPage() {
   const handleFundProject = async () => {
     if (!connected || !account || !wallet || createdProjectId == null) return;
     try {
-      await fundProjectIx(account, wallet, createdProjectId, fundAmount);
+      await fundProject(account, wallet, createdProjectId, fundAmount);
       toast.success('Project funded');
     } catch (e) {
       console.error(e);
@@ -270,7 +278,7 @@ export default function CreateProjectPage() {
   const handleActivateProject = async () => {
     if (!connected || !account || !wallet || createdProjectId == null) return;
     try {
-      await activateProjectIx(account, wallet, { projectId: createdProjectId, ...activateParams });
+      await activateProject(account, wallet, new BN(createdProjectId));
       toast.success('Project activated');
       router.push(`/admin/projects/${createdProjectId}`);
     } catch (e) {
@@ -280,7 +288,7 @@ export default function CreateProjectPage() {
   };
 
   return (
-    <RequireAdmin 
+    <RequireAdmin
       fallback={
         <div className="min-h-screen bg-black text-white flex items-center justify-center">
           <div className="text-center">
@@ -307,86 +315,86 @@ export default function CreateProjectPage() {
           {/* Sidebar Navigation */}
           <div className="w-72 shrink-0">
             <div className="sticky top-0 rounded-lg glass-card border border-slate-800 p-2 backdrop-blur-sm shadow-lg flex flex-col">
-                <div className="space-y-1">
-                  {[
-                    { id: 'basic', label: 'Basic Info', icon: FileText },
-                    { id: 'tokens', label: 'Tokens', icon: Coins },
-                    { id: 'migration', label: 'Migration', icon: ArrowRight },
-                    { id: 'liquidity', label: 'Liquidity', icon: TrendingUp },
-                    { id: 'access', label: 'Access', icon: Shield },
-                  ].map((tab) => {
-                    const Icon = tab.icon;
-                    const isActive = activeTab === tab.id;
-                    const canAccess = canAccessTab(tab.id);
-                    const isValid = isTabValid(tab.id);
-                    
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => handleTabChange(tab.id)}
-                        disabled={!canAccess && activeTab !== tab.id}
-                        className={cn(
-                          'w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
-                          'disabled:cursor-not-allowed disabled:opacity-50',
-                          isActive
-                            ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 border border-cyan-500/40 shadow-lg shadow-cyan-500/20'
-                            : 'text-slate-400 hover:bg-slate-900/50 hover:text-white',
-                          !isValid && isActive && 'ring-2 ring-yellow-500/50',
-                          !canAccess && activeTab !== tab.id && 'opacity-40'
-                        )}
-                      >
-                        <Icon className="h-4 w-4 shrink-0" />
-                        <span className="flex-1 text-left">{tab.label}</span>
-                        {!isValid && activeTab !== tab.id && (
-                          <span className="text-yellow-400 text-xs">*</span>
-                        )}
-                        {isActive && (
-                          <div className="h-2 w-2 rounded-full bg-cyan-400" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-                
-                  <div className="mt-4 pt-4 border-t border-slate-800 flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={handlePrevious}
-                      disabled={activeTab === 'basic'}
-                      size="sm"
-                      className="flex-1 border-slate-700 hover:border-cyan-500"
+              <div className="space-y-1">
+                {[
+                  { id: 'basic', label: 'Basic Info', icon: FileText },
+                  { id: 'tokens', label: 'Tokens', icon: Coins },
+                  { id: 'migration', label: 'Migration', icon: ArrowRight },
+                  { id: 'liquidity', label: 'Liquidity', icon: TrendingUp },
+                  { id: 'access', label: 'Access', icon: Shield },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  const canAccess = canAccessTab(tab.id);
+                  const isValid = isTabValid(tab.id);
+
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => handleTabChange(tab.id)}
+                      disabled={!canAccess && activeTab !== tab.id}
+                      className={cn(
+                        'w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
+                        'disabled:cursor-not-allowed disabled:opacity-50',
+                        isActive
+                          ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 border border-cyan-500/40 shadow-lg shadow-cyan-500/20'
+                          : 'text-slate-400 hover:bg-slate-900/50 hover:text-white',
+                        !isValid && isActive && 'ring-2 ring-yellow-500/50',
+                        !canAccess && activeTab !== tab.id && 'opacity-40'
+                      )}
                     >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Previous
-                    </Button>
-                    
-                    {activeTab === 'access' ? (
-                      <Button
-                        onClick={handleCreateProject}
-                        disabled={!config.name || !config.oldToken.address || !config.newToken.address || isCreating || !connected}
-                        size="sm"
-                        className="flex-1 btn-brand"
-                      >
-                        {isCreating ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Creating...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Create Project
-                          </>
-                        )}
-                      </Button>
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="flex-1 text-left">{tab.label}</span>
+                      {!isValid && activeTab !== tab.id && (
+                        <span className="text-yellow-400 text-xs">*</span>
+                      )}
+                      {isActive && (
+                        <div className="h-2 w-2 rounded-full bg-cyan-400" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-slate-800 flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handlePrevious}
+                  disabled={activeTab === 'basic'}
+                  size="sm"
+                  className="flex-1 border-slate-700 hover:border-cyan-500"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Previous
+                </Button>
+
+                {activeTab === 'access' ? (
+                  <Button
+                    onClick={handleCreateProject}
+                    disabled={!config.name || !config.oldToken.address || !config.newToken.address || isCreating || !connected || !validateNotTheSameToken()}
+                    size="sm"
+                    className="flex-1 btn-brand"
+                  >
+                    {isCreating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating...
+                      </>
                     ) : (
-                      <Button onClick={handleNext} size="sm" className="flex-1 btn-brand">
-                        Next
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
+                      <>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Create Project
+                      </>
                     )}
-                  </div>
-                </div>
+                  </Button>
+                ) : (
+                  <Button onClick={handleNext} size="sm" className="flex-1 btn-brand">
+                    Next
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Main Content */}
@@ -420,7 +428,7 @@ export default function CreateProjectPage() {
                       <p className="text-xs text-yellow-400 mt-0.5">Project name is required</p>
                     )}
                   </div>
-                  
+
                   <div className="flex-1 flex flex-col min-h-0">
                     <Label htmlFor="description" className="text-sm text-white">Description</Label>
                     <Textarea
@@ -454,8 +462,8 @@ export default function CreateProjectPage() {
                         id="oldAddress"
                         placeholder="So11111111111111111111111111111111111111112"
                         value={config.oldToken.address}
-                        onChange={(e) => setConfig({ 
-                          ...config, 
+                        onChange={(e) => setConfig({
+                          ...config,
                           oldToken: { ...config.oldToken, address: e.target.value }
                         })}
                         className={cn(
@@ -468,7 +476,7 @@ export default function CreateProjectPage() {
                         <p className="text-xs text-yellow-400 mt-0.5">Old token address is required</p>
                       )}
                     </div>
-                    
+
                     <div className="grid gap-3 grid-cols-2">
                       <div>
                         <Label htmlFor="oldSymbol" className="text-sm text-white">Symbol</Label>
@@ -476,14 +484,14 @@ export default function CreateProjectPage() {
                           id="oldSymbol"
                           placeholder="OLD"
                           value={config.oldToken.symbol}
-                          onChange={(e) => setConfig({ 
-                            ...config, 
+                          onChange={(e) => setConfig({
+                            ...config,
                             oldToken: { ...config.oldToken, symbol: e.target.value.toUpperCase() }
                           })}
                           className="mt-1 text-sm h-9 bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                         />
                       </div>
-                      
+
                       <div>
                         <Label htmlFor="oldDecimals" className="text-sm text-white">Decimals</Label>
                         <Input
@@ -492,13 +500,29 @@ export default function CreateProjectPage() {
                           min="0"
                           max="9"
                           value={config.oldToken.decimals}
-                          onChange={(e) => setConfig({ 
-                            ...config, 
+                          onChange={(e) => setConfig({
+                            ...config,
                             oldToken: { ...config.oldToken, decimals: parseInt(e.target.value) || 0 }
                           })}
                           className="mt-1 text-sm h-9 bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                         />
                       </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="space-y-0">
+                        <Label htmlFor="oldIsToken2022" className="text-sm text-white">Token-2022</Label>
+                        <p className="text-xs text-slate-400">
+                          Token Extensions token?
+                        </p>
+                      </div>
+                      <Switch
+                        id="oldIsToken2022"
+                        checked={config.oldToken.isToken2022}
+                        onCheckedChange={(checked) => setConfig({
+                          ...config,
+                          oldToken: { ...config.oldToken, isToken2022: checked }
+                        })}
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -519,8 +543,8 @@ export default function CreateProjectPage() {
                         id="newAddress"
                         placeholder="So11111111111111111111111111111111111111113"
                         value={config.newToken.address}
-                        onChange={(e) => setConfig({ 
-                          ...config, 
+                        onChange={(e) => setConfig({
+                          ...config,
                           newToken: { ...config.newToken, address: e.target.value }
                         })}
                         className={cn(
@@ -533,7 +557,7 @@ export default function CreateProjectPage() {
                         <p className="text-xs text-yellow-400 mt-0.5">New token address is required</p>
                       )}
                     </div>
-                    
+
                     <div className="grid gap-3 grid-cols-2">
                       <div>
                         <Label htmlFor="newSymbol" className="text-sm text-white">Symbol</Label>
@@ -541,14 +565,14 @@ export default function CreateProjectPage() {
                           id="newSymbol"
                           placeholder="NEW"
                           value={config.newToken.symbol}
-                          onChange={(e) => setConfig({ 
-                            ...config, 
+                          onChange={(e) => setConfig({
+                            ...config,
                             newToken: { ...config.newToken, symbol: e.target.value.toUpperCase() }
                           })}
                           className="mt-1 text-sm h-9 bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                         />
                       </div>
-                      
+
                       <div>
                         <Label htmlFor="newDecimals" className="text-sm text-white">Decimals</Label>
                         <Input
@@ -557,8 +581,8 @@ export default function CreateProjectPage() {
                           min="0"
                           max="9"
                           value={config.newToken.decimals}
-                          onChange={(e) => setConfig({ 
-                            ...config, 
+                          onChange={(e) => setConfig({
+                            ...config,
                             newToken: { ...config.newToken, decimals: parseInt(e.target.value) || 0 }
                           })}
                           className="mt-1 text-sm h-9 bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
@@ -649,7 +673,7 @@ export default function CreateProjectPage() {
                           <p className="text-xs text-yellow-400 mt-1">Start date is required</p>
                         )}
                       </div>
-                      
+
                       <div>
                         <Label htmlFor="endDate" className="text-white">
                           End Date <span className="text-yellow-400">*</span>
@@ -705,15 +729,15 @@ export default function CreateProjectPage() {
                         value={config.lpConfig.commitment}
                         onChange={(e) => setConfig({
                           ...config,
-                          lpConfig: { ...config.lpConfig, commitment: e.target.value }
+                          lpConfig: { ...config.lpConfig, commitment: Number(e.target.value) }
                         })}
                         className={cn(
                           "mt-0.5 h-8 text-sm bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500",
-                          !config.lpConfig.commitment?.trim() && "border-yellow-500/50 focus-visible:ring-yellow-500"
+                          !config.lpConfig.commitment && "border-yellow-500/50 focus-visible:ring-yellow-500"
                         )}
                         required
                       />
-                      {!config.lpConfig.commitment?.trim() && (
+                      {!config.lpConfig.commitment && (
                         <p className="text-xs text-yellow-400 mt-0.5 leading-tight">SOL commitment is required</p>
                       )}
                     </div>
@@ -755,15 +779,15 @@ export default function CreateProjectPage() {
                         value={config.lpConfig.initialPrice}
                         onChange={(e) => setConfig({
                           ...config,
-                          lpConfig: { ...config.lpConfig, initialPrice: e.target.value }
+                          lpConfig: { ...config.lpConfig, initialPrice: Number(e.target.value) }
                         })}
                         className={cn(
                           "mt-0.5 h-8 text-sm bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500",
-                          !config.lpConfig.initialPrice?.trim() && "border-yellow-500/50 focus-visible:ring-yellow-500"
+                          !config.lpConfig.initialPrice && "border-yellow-500/50 focus-visible:ring-yellow-500"
                         )}
                         required
                       />
-                      {!config.lpConfig.initialPrice?.trim() && (
+                      {!config.lpConfig.initialPrice && (
                         <p className="text-xs text-yellow-400 mt-0.5 leading-tight">Initial price is required</p>
                       )}
                     </div>
@@ -793,7 +817,7 @@ export default function CreateProjectPage() {
                         <p className="text-xs text-yellow-400 mt-0.5 leading-tight">Bin step is required</p>
                       )}
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="minBinId" className="text-xs text-white">
                         Min Bin ID <span className="text-yellow-400">*</span>
@@ -816,7 +840,7 @@ export default function CreateProjectPage() {
                         <p className="text-xs text-yellow-400 mt-0.5 leading-tight">Min bin ID is required</p>
                       )}
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="maxBinId" className="text-xs text-white">
                         Max Bin ID <span className="text-yellow-400">*</span>
@@ -874,7 +898,7 @@ export default function CreateProjectPage() {
                       <p className="text-xs text-slate-400 mb-1.5 leading-tight">
                         Only these addresses can participate
                       </p>
-                      
+
                       {config.allowList.length > 0 && (
                         <div className="mb-1.5 space-y-1">
                           {config.allowList.map((address, index) => (
@@ -897,7 +921,7 @@ export default function CreateProjectPage() {
                           ))}
                         </div>
                       )}
-                      
+
                       <div className="flex gap-1.5">
                         <Input
                           placeholder="Wallet address"
@@ -929,7 +953,7 @@ export default function CreateProjectPage() {
                       <p className="text-xs text-slate-400 mb-1.5 leading-tight">
                         These addresses cannot participate
                       </p>
-                      
+
                       {config.denyList.length > 0 && (
                         <div className="mb-1.5 space-y-1">
                           {config.denyList.map((address, index) => (
@@ -952,7 +976,7 @@ export default function CreateProjectPage() {
                           ))}
                         </div>
                       )}
-                      
+
                       <div className="flex gap-1.5">
                         <Input
                           placeholder="Wallet address"
@@ -1014,7 +1038,7 @@ export default function CreateProjectPage() {
                         ))}
                       </div>
                     )}
-                    
+
                     <div className="space-y-1.5">
                       <Input
                         placeholder="Wallet address"
@@ -1028,9 +1052,9 @@ export default function CreateProjectPage() {
                           min="1"
                           placeholder="1"
                           value={newSpecialRatio.oldAmount}
-                          onChange={(e) => setNewSpecialRatio({ 
-                            ...newSpecialRatio, 
-                            oldAmount: parseInt(e.target.value) || 1 
+                          onChange={(e) => setNewSpecialRatio({
+                            ...newSpecialRatio,
+                            oldAmount: parseInt(e.target.value) || 1
                           })}
                           className="w-20 h-8 text-sm bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                         />
@@ -1041,9 +1065,9 @@ export default function CreateProjectPage() {
                           min="1"
                           placeholder="2"
                           value={newSpecialRatio.newAmount}
-                          onChange={(e) => setNewSpecialRatio({ 
-                            ...newSpecialRatio, 
-                            newAmount: parseInt(e.target.value) || 1 
+                          onChange={(e) => setNewSpecialRatio({
+                            ...newSpecialRatio,
+                            newAmount: parseInt(e.target.value) || 1
                           })}
                           className="w-20 h-8 text-sm bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                         />
@@ -1089,9 +1113,9 @@ export default function CreateProjectPage() {
                 <div className="space-y-2">
                   <Label className="text-white">Fund Amount (new token base units)</Label>
                   <div className="flex gap-2">
-                    <Input 
-                      value={fundAmount} 
-                      onChange={(e) => setFundAmount(e.target.value)} 
+                    <Input
+                      value={fundAmount}
+                      onChange={(e) => setFundAmount(Number(e.target.value))}
                       placeholder="100000000000"
                       className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                     />
@@ -1103,66 +1127,66 @@ export default function CreateProjectPage() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-white">Meteora Pool Address</Label>
-                    <Input 
-                      value={activateParams.meteoraPool} 
+                    <Input
+                      value={activateParams.meteoraPool}
                       onChange={(e) => setActivateParams({ ...activateParams, meteoraPool: e.target.value })}
                       className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                     />
                   </div>
                   <div>
                     <Label className="text-white">LP Mint Address</Label>
-                    <Input 
-                      value={activateParams.lpMint} 
+                    <Input
+                      value={activateParams.lpMint}
                       onChange={(e) => setActivateParams({ ...activateParams, lpMint: e.target.value })}
                       className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                     />
                   </div>
                   <div>
                     <Label className="text-white">Token Allocation (base units)</Label>
-                    <Input 
-                      value={activateParams.tokenAllocation} 
+                    <Input
+                      value={activateParams.tokenAllocation}
                       onChange={(e) => setActivateParams({ ...activateParams, tokenAllocation: e.target.value })}
                       className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                     />
                   </div>
                   <div>
                     <Label className="text-white">Initial Price (SOL per token)</Label>
-                    <Input 
-                      value={activateParams.initialPrice} 
+                    <Input
+                      value={activateParams.initialPrice}
                       onChange={(e) => setActivateParams({ ...activateParams, initialPrice: e.target.value })}
                       className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                     />
                   </div>
                   <div>
                     <Label className="text-white">Bin Step</Label>
-                    <Input 
-                      type="number" 
-                      value={activateParams.binStep} 
+                    <Input
+                      type="number"
+                      value={activateParams.binStep}
                       onChange={(e) => setActivateParams({ ...activateParams, binStep: parseInt(e.target.value) || 0 })}
                       className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                     />
                   </div>
                   <div>
                     <Label className="text-white">Base Fee (bps)</Label>
-                    <Input 
-                      type="number" 
-                      value={activateParams.baseFee} 
+                    <Input
+                      type="number"
+                      value={activateParams.baseFee}
                       onChange={(e) => setActivateParams({ ...activateParams, baseFee: parseInt(e.target.value) || 0 })}
                       className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                     />
                   </div>
                   <div>
                     <Label className="text-white">Price Range Min (SOL)</Label>
-                    <Input 
-                      value={activateParams.priceRangeMin} 
+                    <Input
+                      value={activateParams.priceRangeMin}
                       onChange={(e) => setActivateParams({ ...activateParams, priceRangeMin: e.target.value })}
                       className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                     />
                   </div>
                   <div>
                     <Label className="text-white">Price Range Max (SOL)</Label>
-                    <Input 
-                      value={activateParams.priceRangeMax} 
+                    <Input
+                      value={activateParams.priceRangeMax}
                       onChange={(e) => setActivateParams({ ...activateParams, priceRangeMax: e.target.value })}
                       className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500"
                     />
