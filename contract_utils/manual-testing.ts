@@ -60,7 +60,7 @@ async function main() {
   };
 
   try {
-    // const projectPda = await projectAdminProgramClient.createProject(projectParams);
+    const projectPda = await projectAdminProgramClient.createProject(projectParams);
     const projects = await projectAdminProgramClient.fetchProjects();
 
     console.log("Projects:", projects[0]);

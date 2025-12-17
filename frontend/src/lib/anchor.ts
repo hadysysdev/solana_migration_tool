@@ -122,6 +122,7 @@ export function findPlatformConfigPda(programID: PublicKey): [PublicKey, number]
   return PublicKey.findProgramAddressSync([Buffer.from('platform_config')], programID);
 }
 
+
 // // Types for our program
 // // UI-facing types used throughout the app
 // export interface Project {
